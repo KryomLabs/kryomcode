@@ -65,6 +65,12 @@ jobs:
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 
+      # The macOS runners (7 GB RAM) exhaust Node heap while
+      # bundling the Monaco-heavy renderer: raise the cap for the build.
+      - name: Raise Node heap for macOS build
+        if: runner.os == 'macOS'
+        run: echo "NODE_OPTIONS=--max-old-space-size=4096" >> "$GITHUB_ENV"
+
       - name: Build production renderer
         run: npm run build
 
@@ -94,6 +100,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # The macOS runners (7 GB RAM) exhaust Node heap while
+      # bundling the Monaco-heavy renderer: raise the cap for the build.
+      - name: Raise Node heap for macOS build
+        if: runner.os == 'macOS'
+        run: echo "NODE_OPTIONS=--max-old-space-size=4096" >> "$GITHUB_ENV"
 
       - name: Pack unpacked app
         run: npm run ${{ matrix.pack_script }}
