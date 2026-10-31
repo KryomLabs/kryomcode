@@ -56,9 +56,10 @@ async function openWorkspace(files = {}) {
     await fs.writeFile(full, content)
   }
 
-  await setWorkspaceRoot(dir)
-
-  return dir
+  // Return the canonical root the workspace actually runs under: the
+  // raw temp path can carry symlinked ancestors (/var on macOS) that
+  // never string-match the resolved root in identity checks.
+  return setWorkspaceRoot(dir)
 }
 
 // Deterministic provider: serves one queued JSON answer per model
@@ -1142,10 +1143,12 @@ describe('autonomous-run lifecycle', () => {
     try {
       const root = await openWorkspace(CALC_FILES)
 
-      await saveChat(
+      const seeded = await saveChat(
         [{ role: 'user', content: 'Totals must round half up.' }],
         { root }
       )
+
+      assert.equal(seeded.saved, true)
 
       const provider = new ScriptedProvider([
         analysisAnswer(),

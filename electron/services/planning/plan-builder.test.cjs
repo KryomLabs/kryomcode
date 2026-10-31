@@ -54,10 +54,14 @@ async function openFixture() {
   await fs.mkdir(path.join(root, 'src'), { recursive: true })
   await fs.writeFile(path.join(root, 'src', 'auth.ts'), 'export class Auth {}\n')
   await fs.writeFile(path.join(root, 'src', 'app.ts'), 'import "./auth"\n')
-  await setWorkspaceRoot(root)
+
+  // Return the canonical root the workspace actually runs under: the
+  // raw temp path can carry symlinked ancestors (/var on macOS) that
+  // never string-match the resolved root in identity checks.
+  const canonical = await setWorkspaceRoot(root)
   await refreshIndex()
 
-  return root
+  return canonical
 }
 
 describe('plan-builder', () => {
@@ -173,10 +177,12 @@ describe('plan-builder', () => {
   it('grounds on real chat history when chat is optional and present', async () => {
     const root = await openFixture()
 
-    await saveChat(
+    const seeded = await saveChat(
       [{ role: 'user', content: 'We chose session cookies.' }],
       { root }
     )
+
+    assert.equal(seeded.saved, true)
 
     const provider = new MockProvider({
       answer: decomposition([

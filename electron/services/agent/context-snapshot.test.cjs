@@ -41,7 +41,7 @@ describe('context-snapshot', () => {
 
     await assert.rejects(() => buildChatExcerpt(), /No chat history/)
 
-    await saveChat(
+    const seeded = await saveChat(
       [
         { role: 'user', content: 'How do I log in?' },
         { role: 'assistant', content: 'Use the form.' },
@@ -49,6 +49,8 @@ describe('context-snapshot', () => {
       ],
       { root }
     )
+
+    assert.equal(seeded.saved, true)
 
     const excerpt = await buildChatExcerpt()
 
@@ -67,7 +69,9 @@ describe('context-snapshot', () => {
     // and never a fabricated excerpt.
     assert.equal(await buildChatExcerpt({ required: false }), null)
 
-    await saveChat([{ role: 'user', content: 'hello' }], { root })
+    const helloSeed = await saveChat([{ role: 'user', content: 'hello' }], { root })
+
+    assert.equal(helloSeed.saved, true)
 
     const excerpt = await buildChatExcerpt({ required: false })
 
@@ -190,7 +194,9 @@ describe('context-snapshot', () => {
     assert.equal(empty.chat, null)
     assert.equal(empty.workspace, null)
 
-    await saveChat([{ role: 'user', content: 'hi' }], { root })
+    const hiSeed = await saveChat([{ role: 'user', content: 'hi' }], { root })
+
+    assert.equal(hiSeed.saved, true)
 
     const full = await buildContextSnapshot({
       files: [{ relativePath: 'a.ts', bytes: 3, content: 'abc' }],
