@@ -67,6 +67,7 @@ before calling a service.
 | `agent:impl-plan/revise/cancel` | Evidence-grounded implementation plans, linked revisions, planning abort |
 | `agent:specialist-run/get/cancel/list` | Detached specialist runs (research/coding/testing/debugging/security/review) with persisted records |
 | `agent:orch-start/advance/approve/retry/cancel/get/list` | Orchestrated runs: approved-plan start, wave advance, per-task approval, budgeted retry, cancel, status |
+| `agent:run-start/get/list/proposal/cancel/pause/resume/approve/reject` | Autonomous coding-agent runs: single-session analyze→research→plan→approve→execute→verify→repair→summarize with server-issued approvals, tool policy, budgets, and persisted events (see [MILESTONE3_PLAN.md](MILESTONE3_PLAN.md)) |
 | `settings:get/update` | Validated preference store |
 | `research:start/status/active/list/get/brief/cancel/resume/select` | Background research runs, persisted sessions, cited briefs |
 | `research:rename/delete/search/export/handoff` | Deep-research session management, Markdown/HTML report export, labeled research-to-chat/agent handoffs |
@@ -98,6 +99,19 @@ CommonJS modules (`.cjs`, `require`/`module.exports`):
   JS/TS import graph, dependencies-first order, conflicts,
   review groups, whole-set validation (see below).
 - `agent/repair.service.cjs` — bounded repair cycles (cap, budget, mutex, terminal states) over the plan/diagnostics/checkpoint stores.
+- `agent/autonomous-run.cjs` — autonomous runs: one durable session
+  per task (analyze→research→plan→approve→execute→verify→repair→
+  summarize) with persisted events, server-issued approvals, budgets,
+  pause/resume/cancel, and deterministic summaries.
+- `agent/tool-policy.cjs` — pure allow/approve/deny policy for
+  agent-initiated shell commands, extending the shared destructive
+  patterns (deny-class never runs, no override).
+- `agent/understanding.cjs` — bounded project-understanding bundles:
+  task-relevant retrieval plus the exact inspected-file record with
+  freshness re-checks.
+- `agent/run-summary.cjs` — deterministic final reports from observed
+  events only (passed/failed/skipped/not-executed/manual-pending;
+  never claims completion while verification is pending).
 - `git/` — status, diff, stage, commit, push over `git` on `PATH`.
 - `diagnostics/` — command runner with an observed-run registry,
   pure output parsers, and the failure classifier

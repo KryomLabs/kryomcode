@@ -212,6 +212,33 @@ contextBridge.exposeInMainWorld('kryom', {
   listOrchRuns: () =>
     ipcRenderer.invoke('agent:orch-list'),
 
+  startAgentRun: (payload) =>
+    ipcRenderer.invoke('agent:run-start', payload),
+
+  getAgentRun: (payload) =>
+    ipcRenderer.invoke('agent:run-get', payload),
+
+  listAgentRuns: () =>
+    ipcRenderer.invoke('agent:run-list'),
+
+  getAgentRunProposal: (payload) =>
+    ipcRenderer.invoke('agent:run-proposal', payload),
+
+  cancelAgentRun: (payload) =>
+    ipcRenderer.invoke('agent:run-cancel', payload),
+
+  pauseAgentRun: (payload) =>
+    ipcRenderer.invoke('agent:run-pause', payload),
+
+  resumeAgentRun: (payload) =>
+    ipcRenderer.invoke('agent:run-resume', payload),
+
+  approveAgentRun: (payload) =>
+    ipcRenderer.invoke('agent:run-approve', payload),
+
+  rejectAgentRun: (payload) =>
+    ipcRenderer.invoke('agent:run-reject', payload),
+
   gitStatus: () =>
     ipcRenderer.invoke('git:status'),
 

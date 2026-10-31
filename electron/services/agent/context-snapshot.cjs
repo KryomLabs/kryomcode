@@ -36,15 +36,24 @@ function nowIso() {
 }
 
 // Recent chat formatted for model context. Bounded, redacted, and
-// newest-last; throws when there is no history so an explicit user
-// request never silently degrades to "no chat attached".
-async function buildChatExcerpt() {
+// newest-last. By default it throws when there is no history so an
+// explicit user request never silently degrades to "no chat
+// attached". Pass { required: false } for callers that degrade
+// gracefully (the autonomous planner): empty history then resolves
+// to null — never a fabricated excerpt — while genuine retrieval
+// failures still throw for the caller's error taxonomy.
+async function buildChatExcerpt(options = {}) {
+  const required = options.required !== false
   const restored = await restoreChat()
   const messages = Array.isArray(restored.messages)
     ? restored.messages
     : []
 
   if (messages.length === 0) {
+    if (!required) {
+      return null
+    }
+
     throw new Error('No chat history to include.')
   }
 
@@ -63,6 +72,10 @@ async function buildChatExcerpt() {
   const redacted = redactText(excerpt.trim())
 
   if (!redacted) {
+    if (!required) {
+      return null
+    }
+
     throw new Error('No chat history to include.')
   }
 
@@ -129,6 +142,7 @@ async function buildContextSnapshot({
   files,
   researchSessionId,
   includeChat,
+  chatRequired,
   workspaceBrief,
   projectName,
 }) {
@@ -141,7 +155,10 @@ async function buildContextSnapshot({
         ? researchSessionId.trim()
         : null
     ),
-    chat: includeChat === true ? await buildChatExcerpt() : null,
+    chat:
+      includeChat === true
+        ? await buildChatExcerpt({ required: chatRequired !== false })
+        : null,
     workspace: snapshotWorkspace(workspaceBrief, projectName),
   }
 }

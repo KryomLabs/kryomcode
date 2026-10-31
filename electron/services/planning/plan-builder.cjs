@@ -665,6 +665,16 @@ async function buildImplementationPlan(payload, options = {}) {
     throw new Error('Invalid includeChat flag.')
   }
 
+  if (
+    payload.chatRequired !== undefined &&
+    payload.chatRequired !== null &&
+    typeof payload.chatRequired !== 'boolean'
+  ) {
+    throw new Error('Invalid chatRequired flag.')
+  }
+
+  const chatRequired = payload.chatRequired !== false
+
   const config = getAIConfig()
   const model = resolveModel(payload.model, config.model)
   const provider = options.provider || new MetaMuseProvider({ apiKey: config.apiKey })
@@ -678,8 +688,13 @@ async function buildImplementationPlan(payload, options = {}) {
   let chatExcerpt = null
 
   if (payload.includeChat === true) {
-    chatExcerpt = await buildChatExcerpt()
+    chatExcerpt = await buildChatExcerpt({ required: chatRequired })
   }
+
+  // Optional-chat callers (the autonomous runner) degrade to
+  // chat-free planning when no history exists; the flag lets them
+  // report the omission instead of failing the plan.
+  const chatOmitted = payload.includeChat === true && !chatExcerpt
 
   const result = await callDecomposer({
     model,
@@ -706,6 +721,7 @@ async function buildImplementationPlan(payload, options = {}) {
     files: source.files,
     researchSessionId: researchSessionId ?? null,
     includeChat: payload.includeChat === true,
+    chatRequired,
     workspaceBrief: evidenceBlock(evidence),
     projectName: path.basename(getWorkspaceRoot() ?? ''),
   })
@@ -760,6 +776,7 @@ async function buildImplementationPlan(payload, options = {}) {
   return {
     plan: refreshed,
     indexRefreshed: index.refreshed,
+    chatOmitted,
     decomposition: {
       objective: decomposition.objective,
       expectedOutcome: decomposition.expectedOutcome,

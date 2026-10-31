@@ -60,6 +60,7 @@ import { SearchPanel } from '../components/SearchPanel'
 import { EditorPanel, type EditorApi, type MetaTabContext } from '../components/EditorPanel'
 import { IntelligenceHub } from '../components/IntelligenceHub'
 import { PlatformHub } from '../components/PlatformHub'
+import { AgentWorkspace } from '../components/AgentWorkspace'
 import { TasksPanel } from '../components/TasksPanel'
 import { TemplatePickerDialog } from '../components/TemplatePickerDialog'
 import type { MetaInitialPrompt } from '../components/MetaAIWorkspace'
@@ -83,8 +84,8 @@ import { DiagnosticsDialog } from '../components/DiagnosticsDialog'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 
 type BottomTab = 'terminal' | 'problems' | 'git' | 'output' | 'tasks'
-type CenterView = 'editor' | 'home' | 'intel' | 'platform'
-type StageMode = 'intel' | 'platform'
+type CenterView = 'editor' | 'home' | 'intel' | 'platform' | 'agent'
+type StageMode = 'intel' | 'platform' | 'agent'
 
 // Unified workbench (Level 3C): code files and Meta AI sessions share
 // one central tab system with split groups; Intel/Platform ride a
@@ -321,7 +322,9 @@ function AppShell() {
   const windowTitle = `${dirty ? '• ' : ''}${activeLabel ? `${activeLabel} — ` : ''}${workspace ? `${baseName(workspace.root)} — ` : ''}KryomCode`
   const showEditor = centerView === 'editor'
   const staged: StageMode | null =
-    centerView === 'intel' || centerView === 'platform' ? centerView : null
+    centerView === 'intel' || centerView === 'platform' || centerView === 'agent'
+      ? centerView
+      : null
 
   useEffect(() => {
     logOutput('app', 'KryomCode started')
@@ -1683,7 +1686,7 @@ function AppShell() {
     }
 
     if (def.area === 'center') {
-      if (id === 'intel' || id === 'platform') {
+      if (id === 'intel' || id === 'platform' || id === 'agent') {
         setCenterView(id)
         return
       }
@@ -1729,7 +1732,7 @@ function AppShell() {
     }
 
     if (def.area === 'center') {
-      if (id === 'intel' || id === 'platform') {
+      if (id === 'intel' || id === 'platform' || id === 'agent') {
         setCenterView(id)
         return
       }
@@ -1762,7 +1765,7 @@ function AppShell() {
       return centerView === 'editor' && activeMetaTab !== null
     }
 
-    if (id === 'intel' || id === 'platform') {
+    if (id === 'intel' || id === 'platform' || id === 'agent') {
       return centerView === id
     }
 
@@ -2315,6 +2318,7 @@ function AppShell() {
   const STAGE_TABS: Array<{ id: StageMode; label: string }> = [
     { id: 'intel', label: 'INTEL' },
     { id: 'platform', label: 'PLATFORM' },
+    { id: 'agent', label: 'AGENT' },
   ]
 
   const BOTTOM_TABS: Array<{ id: BottomTab; label: string }> = [
@@ -2654,6 +2658,27 @@ function AppShell() {
                 <PlatformHub
                   workspaceRoot={workspace?.root ?? null}
                   onStatus={reportStatus}
+                />
+              </div>
+              <div hidden={staged !== 'agent'} className="tab-body">
+                <AgentWorkspace
+                  workspaceRoot={workspace?.root ?? null}
+                  defaultModel={settings.defaultModel}
+                  activeFile={activeCodePath}
+                  onStatus={reportStatus}
+                  onOpenFile={(path, line) =>
+                    void openEditorFile(
+                      resolveAgainstRoot(workspace?.root ?? null, path),
+                      line
+                    )
+                  }
+                  onFilesChanged={(paths) =>
+                    void handleAgentFilesChanged(
+                      paths.map((entry) =>
+                        resolveAgainstRoot(workspace?.root ?? null, entry)
+                      )
+                    )
+                  }
                 />
               </div>
             </div>

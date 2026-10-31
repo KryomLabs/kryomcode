@@ -14,6 +14,9 @@ const {
   refreshIndex,
 } = require('../project-intelligence/code-index.service.cjs')
 const {
+  saveChat,
+} = require('../ai/chat-store.cjs')
+const {
   getPlan,
   setStepState,
 } = require('../agent/plan-store.cjs')
@@ -98,6 +101,135 @@ describe('plan-builder', () => {
         String(entry.content).includes('Project evidence')
       )
     )
+  })
+
+  it('fails loudly on empty chat history when chat is required', async () => {
+    await openFixture()
+
+    const provider = new MockProvider({
+      answer: decomposition([
+        {
+          title: 'Add login method',
+          description: 'Implement login on Auth.',
+          files: ['src/auth.ts'],
+          dependsOn: [],
+          verification: 'npm test',
+          completion: 'login works',
+        },
+      ]),
+    })
+
+    // Explicit requests keep the strict contract: no silent omission.
+    await assert.rejects(
+      () =>
+        buildImplementationPlan(
+          { requirement: 'Add user login', includeChat: true },
+          { provider }
+        ),
+      /No chat history/
+    )
+    await assert.rejects(
+      () =>
+        buildImplementationPlan(
+          { requirement: 'x', includeChat: true, chatRequired: 'yes' },
+          { provider }
+        ),
+      /Invalid chatRequired flag/
+    )
+  })
+
+  it('omits empty chat history when chat is optional', async () => {
+    await openFixture()
+
+    const provider = new MockProvider({
+      answer: decomposition([
+        {
+          title: 'Add login method',
+          description: 'Implement login on Auth.',
+          files: ['src/auth.ts'],
+          dependsOn: [],
+          verification: 'npm test',
+          completion: 'login works',
+        },
+      ]),
+    })
+
+    const result = await buildImplementationPlan(
+      { requirement: 'Add user login', includeChat: true, chatRequired: false },
+      { provider }
+    )
+
+    assert.equal(result.chatOmitted, true)
+    assert.equal(result.decomposition.subtasks.length, 1)
+    assert.ok(result.plan.id.startsWith('pl-'))
+    // Nothing fabricated: the decomposer saw no chat block at all.
+    assert.ok(
+      !provider.lastCall.messages.some((entry) =>
+        String(entry.content).includes('Recent chat')
+      )
+    )
+  })
+
+  it('grounds on real chat history when chat is optional and present', async () => {
+    const root = await openFixture()
+
+    await saveChat(
+      [{ role: 'user', content: 'We chose session cookies.' }],
+      { root }
+    )
+
+    const provider = new MockProvider({
+      answer: decomposition([
+        {
+          title: 'Add login method',
+          description: 'Implement login on Auth.',
+          files: ['src/auth.ts'],
+          dependsOn: [],
+          verification: 'npm test',
+          completion: 'login works',
+        },
+      ]),
+    })
+
+    const result = await buildImplementationPlan(
+      { requirement: 'Add user login', includeChat: true, chatRequired: false },
+      { provider }
+    )
+
+    assert.equal(result.chatOmitted, false)
+    assert.ok(
+      provider.lastCall.messages.some((entry) =>
+        String(entry.content).includes('session cookies')
+      )
+    )
+
+    const stored = await getPlan(result.plan.id)
+
+    assert.equal(stored.context.chat.messageCount, 1)
+  })
+
+  it('reports no omission when chat is not requested', async () => {
+    await openFixture()
+
+    const provider = new MockProvider({
+      answer: decomposition([
+        {
+          title: 'Add login method',
+          description: 'Implement login on Auth.',
+          files: ['src/auth.ts'],
+          dependsOn: [],
+          verification: 'npm test',
+          completion: 'login works',
+        },
+      ]),
+    })
+
+    const result = await buildImplementationPlan(
+      { requirement: 'Add user login' },
+      { provider }
+    )
+
+    assert.equal(result.chatOmitted, false)
   })
 
   it('groups independent disjoint work for parallel execution', async () => {

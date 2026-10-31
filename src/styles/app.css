@@ -3057,3 +3057,471 @@ html.kryom-resizing .resize-handle::after {
 .plan-context-warning {
   color: var(--kc-warn-bright);
 }
+
+/* Autonomous agent workspace (Milestone 3). Compact two-column
+   layout that collapses to one column on narrow stages. */
+.agent-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 20px;
+  min-height: 100%;
+}
+
+.agent-run-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--kc-border-soft);
+}
+
+.agent-run-identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.agent-run-header-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.agent-run-model {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.agent-run-model select {
+  max-width: 220px;
+}
+
+.agent-run-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--kc-border);
+  background: var(--kc-panel-alt);
+  color: var(--kc-text-dim);
+  white-space: nowrap;
+}
+
+.agent-run-status.active {
+  color: var(--kc-accent);
+  border-color: var(--kc-accent-dim);
+}
+
+.agent-run-status.done {
+  color: var(--kc-ok);
+  border-color: var(--kc-ok-bg);
+  background: var(--kc-ok-bg);
+}
+
+.agent-run-status.bad {
+  color: var(--kc-danger);
+  border-color: var(--kc-danger);
+}
+
+.agent-run-status.attention {
+  color: var(--kc-warn);
+  border-color: var(--kc-warn);
+  background: var(--kc-warn-bg);
+}
+
+.agent-run-status.muted,
+.agent-run-status.idle {
+  color: var(--kc-text-faint);
+}
+
+.agent-workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .agent-workspace-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.agent-workspace-left,
+.agent-workspace-right {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.agent-run-section {
+  background: var(--kc-panel);
+  border: 1px solid var(--kc-border-soft);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.agent-run-section h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--kc-text-dim);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agent-run-section h4 {
+  margin: 8px 0 4px;
+  font-size: 12px;
+  color: var(--kc-text-dim);
+}
+
+.agent-run-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-run-task-input {
+  resize: none;
+  min-height: 64px;
+  line-height: 1.5;
+}
+
+.agent-run-composer-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.agent-run-research {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.agent-run-attach {
+  display: flex;
+  gap: 8px;
+}
+
+.agent-run-attach input {
+  flex: 1;
+}
+
+.agent-run-file-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 140px;
+  overflow: auto;
+}
+
+.agent-run-task-text {
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.agent-run-approval {
+  background: var(--kc-warn-bg);
+  border: 1px solid var(--kc-warn);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-run-approval-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agent-run-approval-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agent-run-approval-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.agent-run-command code {
+  display: block;
+  background: #101014;
+  border: 1px solid var(--kc-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font: 12px Consolas, monospace;
+  overflow-x: auto;
+}
+
+.agent-run-risk-list,
+.agent-run-file-list,
+.agent-run-check-list {
+  list-style: none;
+  margin: 4px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.risk-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 8px;
+  border: 1px solid var(--kc-border);
+}
+
+.risk-low {
+  color: var(--kc-ok);
+}
+
+.risk-medium {
+  color: var(--kc-warn);
+}
+
+.risk-high {
+  color: var(--kc-danger);
+  border-color: var(--kc-danger);
+}
+
+.change-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  border: 1px solid var(--kc-border);
+  color: var(--kc-text-dim);
+  white-space: nowrap;
+}
+
+.change-create {
+  color: var(--kc-ok);
+}
+
+.change-delete {
+  color: var(--kc-danger);
+}
+
+.agent-run-objective {
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.agent-run-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: agent-step;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-run-step {
+  counter-increment: agent-step;
+  border-left: 2px solid var(--kc-border);
+  padding-left: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.agent-run-step::marker {
+  content: '';
+}
+
+.agent-run-step-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agent-run-step-head::before {
+  content: counter(agent-step);
+  font-size: 11px;
+  color: var(--kc-text-faint);
+  min-width: 14px;
+}
+
+.agent-run-step-title {
+  font-weight: 600;
+}
+
+.agent-run-step-icon {
+  color: var(--kc-text-dim);
+}
+
+.agent-run-step.state-passed .agent-run-step-icon,
+.agent-run-step.state-repaired .agent-run-step-icon {
+  color: var(--kc-ok);
+}
+
+.agent-run-step.state-failed .agent-run-step-icon {
+  color: var(--kc-danger);
+}
+
+.agent-run-step.state-applying .agent-run-step-icon,
+.agent-run-step.state-check-running .agent-run-step-icon,
+.agent-run-step.state-repairing .agent-run-step-icon {
+  color: var(--kc-accent);
+}
+
+.agent-run-details {
+  margin-top: 8px;
+}
+
+.agent-run-details summary {
+  cursor: pointer;
+  color: var(--kc-text-dim);
+}
+
+.agent-run-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.agent-run-event {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.agent-run-event-icon {
+  color: var(--kc-text-faint);
+  min-width: 14px;
+  text-align: center;
+}
+
+.agent-run-event-message {
+  overflow-wrap: anywhere;
+}
+
+.agent-run-change-group + .agent-run-change-group {
+  margin-top: 8px;
+}
+
+.agent-run-change-file {
+  border-bottom: 1px solid var(--kc-border-soft);
+  padding: 2px 0 4px;
+}
+
+.agent-run-change-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.agent-run-change-diff {
+  margin-top: 4px;
+}
+
+.agent-run-check {
+  border: 1px solid var(--kc-border-soft);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.agent-run-check-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 6px 8px;
+}
+
+.agent-run-check-head:hover:not(:disabled) {
+  background: var(--kc-panel-alt);
+}
+
+.agent-run-check-icon {
+  min-width: 14px;
+  text-align: center;
+}
+
+.verdict-passed .agent-run-check-icon {
+  color: var(--kc-ok);
+}
+
+.verdict-failed .agent-run-check-icon,
+.verdict-timed_out .agent-run-check-icon {
+  color: var(--kc-danger);
+}
+
+.agent-run-check-name {
+  font: 12px Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+.agent-run-check-body {
+  padding: 0 8px 8px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agent-run-output {
+  margin: 0;
+  background: #101014;
+  border: 1px solid var(--kc-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font: 11px/1.55 Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 240px;
+  overflow: auto;
+}
+
+.agent-run-result-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.agent-run-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.agent-run-interrupted {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--kc-warn-bg);
+  border: 1px solid var(--kc-warn);
+  border-radius: 8px;
+  padding: 8px 12px;
+}

@@ -1031,6 +1031,286 @@ interface KryomOrchRun {
   history: Array<{ at: string; kind: string; task?: string; reason?: string }>
 }
 
+// Autonomous coding-agent runs (Milestone 3). The record is the
+// single source of truth the Agent workspace renders: state,
+// persisted events, approvals, subtasks, checks, and the final
+// deterministic summary.
+type KryomAgentRunState =
+  | 'analyzing'
+  | 'researching'
+  | 'planning'
+  | 'proposing'
+  | 'waiting_for_approval'
+  | 'executing'
+  | 'verifying'
+  | 'repairing'
+  | 'paused'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+
+type KryomAgentRunSubtaskState =
+  | 'pending'
+  | 'ready'
+  | 'applying'
+  | 'applied'
+  | 'check-pending'
+  | 'check-running'
+  | 'passed'
+  | 'failed'
+  | 'repairing'
+  | 'repaired'
+  | 'skipped'
+
+type KryomAgentResearchMode = 'off' | 'auto' | 'required'
+
+type KryomAgentApprovalKind = 'plan' | 'command' | 'repair'
+
+interface KryomAgentRunEvent {
+  seq: number
+  at: string
+  kind: string
+  phase: string
+  message: string
+  data: unknown
+}
+
+interface KryomAgentRunSubtask {
+  index: number
+  title: string
+  state: KryomAgentRunSubtaskState
+  files: Array<{ path: string; exists: boolean }>
+  verification: string
+  verificationNote: string
+  check: string | null
+  conclusion: string | null
+  runId: string | null
+  checkpointId: string | null
+  error: string
+  attempts: number
+}
+
+interface KryomAgentRunProposalFile {
+  path: string
+  action: 'create' | 'modify' | 'delete'
+  contentLength?: number
+  preview?: string
+  reason?: string
+}
+
+interface KryomAgentRunProposalMeta {
+  subtask: number
+  title: string
+  editCount: number
+  droppedOutOfScope: number
+  files: KryomAgentRunProposalFile[]
+  commands: string[]
+  notes: string
+  proposedAt: string
+}
+
+interface KryomAgentRunCheck {
+  subtask: number | null
+  check: string
+  conclusion: string
+  exitCode: number | null
+  timedOut: boolean
+  runId: string | null
+  reason: string
+  reportId: string | null
+  output: string | null
+  outputLimited: boolean
+  problems: number
+  problemsTruncated: boolean
+  at: string
+}
+
+interface KryomAgentCommandReview {
+  verdict: 'run' | 'approve' | 'deny'
+  reason: string
+  warnings: string[]
+}
+
+interface KryomAgentRunApproval {
+  id: string
+  kind: KryomAgentApprovalKind
+  createdAt: string
+  payload: {
+    planId?: string
+    objective?: string
+    expectedOutcome?: string
+    risks?: KryomPlanRisk[]
+    subtasks?: Array<{
+      index: number
+      title: string
+      files: Array<{ path: string; exists: boolean }>
+      dependsOn: number[]
+      verification: string
+      completion: string
+      editCount: number
+    }>
+    editCount?: number
+    files?: Array<{ path: string; action: string }>
+    verification?: Array<{
+      subtask: number
+      title: string
+      stated: string
+      command: string | null
+      review: KryomAgentCommandReview | null
+    }>
+    changeSet?: {
+      version: number
+      order: number[]
+      orderReason: string
+      conflicts: Array<{ path: string; indexes: number[] }>
+      cycles: string[][]
+      validation: { ok: boolean; blockers: Array<{ kind: string; path: string | null; reason: string }>; warnings: Array<{ path: string | null; reason: string }> }
+      reviewGroups: Array<{ indexes: number[]; files: string[] }>
+      bounds: { targets: number; filesParsed: number; edges: number; depthReached: number; truncated: boolean }
+    } | null
+    subtask?: number | null
+    title?: string
+    check?: string
+    command?: string
+    purpose?: string
+    review?: KryomAgentCommandReview
+    cycleId?: string
+    attemptId?: string
+    attempt?: number
+    edits?: KryomAgentRunProposalFile[]
+    notes?: string
+  }
+}
+
+interface KryomAgentRunSummary {
+  version: number
+  runId: string | null
+  task: string
+  state: string
+  workComplete: boolean
+  verification: 'verified' | 'partially-verified' | 'unverified'
+  whatChanged: Array<{ path: string; action: string; label: string; subtask: number | null }>
+  whyChanged: string
+  filesAffected: number
+  checks: {
+    passed: KryomAgentRunCheck[]
+    failed: KryomAgentRunCheck[]
+    skipped: KryomAgentRunCheck[]
+    notExecuted: KryomAgentRunCheck[]
+    manualPending: KryomAgentRunCheck[]
+  }
+  checkCounts: { passed: number; failed: number; skipped: number; notExecuted: number; manualPending: number }
+  remainingIssues: string[]
+  suggestedNext: string
+  repairs: number
+  approvals: number
+  startedAt: string | null
+  finishedAt: string | null
+}
+
+interface KryomAgentRun {
+  version: number
+  id: string
+  task: string
+  model: string
+  researchMode: KryomAgentResearchMode
+  includeChat: boolean
+  contextPaths: string[]
+  state: KryomAgentRunState
+  prevState: KryomAgentRunState | null
+  createdAt: string
+  updatedAt: string
+  startedAt: string
+  finishedAt: string | null
+  deadline: number
+  cancelRequested: boolean
+  pauseRequested: boolean
+  understanding: {
+    at: string
+    projectName: string
+    projectType: string
+    inspected: Array<{ relativePath: string; digest: string; bytes: number }>
+    excluded: Array<{ path: string; reason: string }>
+    relevantFiles: Array<{ path: string; score: number | null; reason: string }>
+    git: { available: boolean; branch?: string | null; clean?: boolean; unstagedTotal?: number; stagedTotal?: number; untrackedTotal?: number; reason?: string }
+    failures: string[]
+    brief: string
+  } | null
+  analysis: {
+    outcome: string
+    affectedFiles: string[]
+    hintsDropped: number
+    risks: KryomPlanRisk[]
+    needsResearch: boolean
+    researchQuestions: string[]
+    validationCriteria: string[]
+  } | null
+  researchSessionId: string | null
+  research: { sessionId: string; status: string; sources: number; excerptChars: number } | null
+  planId: string | null
+  planIds: string[]
+  revisions: number
+  decomposition: {
+    objective: string
+    expectedOutcome: string
+    risks: KryomPlanRisk[]
+    assumptions: string[]
+    subtasks: Array<{
+      index: number
+      title: string
+      description: string
+      files: Array<{ path: string; exists: boolean }>
+      dependsOn: number[]
+      verification: string
+      completion: string
+    }>
+  } | null
+  executionOrder: number[]
+  proposals: Record<string, KryomAgentRunProposalMeta>
+  proposalFiles: string[]
+  changeSet: KryomAgentRunApproval['payload']['changeSet']
+  pendingApproval: KryomAgentRunApproval | null
+  approvedCommands: string[]
+  repair: { subtask: number; check: string; command: string; cycleId: string | null } | null
+  subtasks: KryomAgentRunSubtask[]
+  appliedFiles: Array<{ path: string; action: string; subtask: number }>
+  checks: KryomAgentRunCheck[]
+  events: KryomAgentRunEvent[]
+  summary: KryomAgentRunSummary | null
+  memoryId: string | null
+  error: { phase: string; message: string; at: string } | null
+  live: boolean
+  interrupted: boolean
+}
+
+interface KryomAgentRunListItem {
+  id: string
+  task: string
+  state: KryomAgentRunState
+  live: boolean
+  interrupted: boolean
+  createdAt: string
+  updatedAt: string
+  finishedAt: string | null
+  subtasks: Array<{ index: number; title: string; state: KryomAgentRunSubtaskState }>
+  checkCounts: { passed: number; failed: number; skipped: number; notExecuted: number }
+  eventCount: number
+  error: { phase: string; message: string; at: string } | null
+}
+
+interface KryomAgentRunProposal {
+  subtask: number
+  title: string
+  edits: KryomAgentEdit[]
+  droppedOutOfScope: string[]
+  commands: string[]
+  notes: string
+  expectedOutcome: string
+  risks: KryomPlanRisk[]
+  model: string
+  proposedAt: string
+}
+
 interface KryomQualityReport {
   version: number
   id: string
@@ -1697,6 +1977,41 @@ interface KryomAPI {
   }) => Promise<KryomOrchRun>
 
   listOrchRuns: () => Promise<{ runs: KryomOrchRun[]; corrupt: string[] }>
+
+  startAgentRun: (payload: {
+    task: string
+    model?: string
+    contextPaths?: string[]
+    researchMode?: KryomAgentResearchMode
+    includeChat?: boolean
+  }) => Promise<KryomAgentRun>
+
+  getAgentRun: (payload: { runId: string }) => Promise<KryomAgentRun>
+
+  listAgentRuns: () => Promise<{ runs: KryomAgentRunListItem[]; corrupt: string[] }>
+
+  getAgentRunProposal: (payload: {
+    runId: string
+    subtask: number
+  }) => Promise<{ runId: string; subtask: number; proposal: KryomAgentRunProposal }>
+
+  cancelAgentRun: (payload: { runId: string }) => Promise<KryomAgentRun>
+
+  pauseAgentRun: (payload: { runId: string }) => Promise<KryomAgentRun>
+
+  resumeAgentRun: (payload: { runId: string }) => Promise<KryomAgentRun>
+
+  approveAgentRun: (payload: {
+    runId: string
+    approvalId: string
+  }) => Promise<KryomAgentRun>
+
+  rejectAgentRun: (payload: {
+    runId: string
+    approvalId: string
+    reason?: string
+    revise?: boolean
+  }) => Promise<KryomAgentRun>
 
   getAgentContext: (payload: {
     paths: string[]

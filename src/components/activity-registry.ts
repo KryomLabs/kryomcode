@@ -187,6 +187,17 @@ const BUILTINS: ActivityDefinition[] = [
     ],
   },
   {
+    id: 'agent',
+    label: 'Agent',
+    area: 'center',
+    order: 95,
+    hint: 'Autonomous coding agent runs',
+    paths: [
+      'M5 4h14v12H9l-4 4z',
+      'M9 9h6M9 12h4',
+    ],
+  },
+  {
     id: 'ai',
     label: 'Meta AI',
     area: 'action',

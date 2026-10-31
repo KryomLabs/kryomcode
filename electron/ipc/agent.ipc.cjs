@@ -758,4 +758,171 @@ module.exports = function registerAgentIPC({
 
     return listRuns()
   })
+
+  // Autonomous coding-agent runs (Milestone 3). The boundary checks
+  // trust and shapes; the state machine, approvals, policy, budgets,
+  // and persistence live in the service, so forged renderers cannot
+  // bypass them. Approval ids are server-issued and single-use.
+  ipcMain.handle('agent:run-start', async (event, payload) => {
+    if (!isTrustedSender(event)) {
+      throw new Error('Unauthorized agent request.')
+    }
+
+    assertPlainObject(payload, 'agent run request')
+
+    const {
+      startRun,
+    } = require('../services/agent/autonomous-run.cjs')
+
+    if (
+      payload.includeChat !== undefined &&
+      payload.includeChat !== null &&
+      typeof payload.includeChat !== 'boolean'
+    ) {
+      throw new Error('Invalid includeChat flag: a boolean is required.')
+    }
+
+    return startRun({
+      task: assertNonEmptyString(payload.task, 'task', 4000),
+      model: assertOptionalString(payload.model, 'model', 100) ?? undefined,
+      contextPaths: assertContextPaths(payload.contextPaths),
+      researchMode:
+        payload.researchMode === undefined || payload.researchMode === null
+          ? undefined
+          : assertEnum(payload.researchMode, 'research mode', ['off', 'auto', 'required']),
+      includeChat: payload.includeChat === true,
+    })
+  })
+
+  ipcMain.handle('agent:run-get', async (event, payload) => {
+    if (!isTrustedSender(event)) {
+      throw new Error('Unauthorized agent request.')
+    }
+
+    assertPlainObject(payload, 'agent run status')
+
+    const {
+      getRun,
+    } = require('../services/agent/autonomous-run.cjs')
+
+    return getRun(assertNonEmptyString(payload.runId, 'run id', 80))
+  })
+
+  ipcMain.handle('agent:run-list', async (event) => {
+    if (!isTrustedSender(event)) {
+      throw new Error('Unauthorized agent request.')
+    }
+
+    const {
+      listRuns,
+    } = require('../services/agent/autonomous-run.cjs')
+
+    return listRuns()
+  })
+
+  ipcMain.handle('agent:run-proposal', async (event, payload) => {
+    if (!isTrustedSender(event)) {
+      throw new Error('Unauthorized agent request.')
+    }
+
+    assertPlainObject(payload, 'agent run proposal')
+
+    if (
+      typeof payload.subtask !== 'number' ||
+      !Number.isInteger(payload.subtask) ||
+      payload.subtask < 0 ||
+      payload.subtask > 10
+    ) {
+      throw new Error('Invalid subtask index.')
+    }
+
+    const {
+      getRunProposal,
+    } = require('../services/agent/autonomous-run.cjs')
+
+    return getRunProposal(
+      assertNonEmptyString(payload.runId, 'run id', 80),
+      payload.subtask
+    )
+  })
+
+  ipcMain.handle('agent:run-cancel', async (event, payload) => {
+    if (!isTrustedSender(event)) {
+      throw new Error('Unauthorized agent request.')
+    }
+
+    assertPlainObject(payload, 'agent run cancel')
+
+    const {
+      cancelRun,
+    } = require('../services/agent/autonomous-run.cjs')
+
+    return cancelRun(assertNonEmptyString(payload.runId, 'run id', 80))
+  })
+
+  ipcMain.handle('agent:run-pause', async (event, payload) => {
+    if (!isTrustedSender(event)) {
+      throw new Error('Unauthorized agent request.')
+    }
+
+    assertPlainObject(payload, 'agent run pause')
+
+    const {
+      pauseRun,
+    } = require('../services/agent/autonomous-run.cjs')
+
+    return pauseRun(assertNonEmptyString(payload.runId, 'run id', 80))
+  })
+
+  ipcMain.handle('agent:run-resume', async (event, payload) => {
+    if (!isTrustedSender(event)) {
+      throw new Error('Unauthorized agent request.')
+    }
+
+    assertPlainObject(payload, 'agent run resume')
+
+    const {
+      resumeRun,
+    } = require('../services/agent/autonomous-run.cjs')
+
+    return resumeRun(assertNonEmptyString(payload.runId, 'run id', 80))
+  })
+
+  ipcMain.handle('agent:run-approve', async (event, payload) => {
+    if (!isTrustedSender(event)) {
+      throw new Error('Unauthorized agent request.')
+    }
+
+    assertPlainObject(payload, 'agent run approval')
+
+    const {
+      approveRun,
+    } = require('../services/agent/autonomous-run.cjs')
+
+    return approveRun(
+      assertNonEmptyString(payload.runId, 'run id', 80),
+      assertNonEmptyString(payload.approvalId, 'approval id', 80)
+    )
+  })
+
+  ipcMain.handle('agent:run-reject', async (event, payload) => {
+    if (!isTrustedSender(event)) {
+      throw new Error('Unauthorized agent request.')
+    }
+
+    assertPlainObject(payload, 'agent run rejection')
+
+    const {
+      rejectRun,
+    } = require('../services/agent/autonomous-run.cjs')
+
+    return rejectRun(
+      assertNonEmptyString(payload.runId, 'run id', 80),
+      assertNonEmptyString(payload.approvalId, 'approval id', 80),
+      {
+        reason: assertOptionalString(payload.reason, 'reason', 2000) ?? undefined,
+        revise: payload.revise === true,
+      }
+    )
+  })
 }

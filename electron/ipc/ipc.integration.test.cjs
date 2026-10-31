@@ -316,6 +316,15 @@ describe('ipc integration', () => {
       'agent:orch-cancel',
       'agent:orch-get',
       'agent:orch-list',
+      'agent:run-start',
+      'agent:run-get',
+      'agent:run-list',
+      'agent:run-proposal',
+      'agent:run-cancel',
+      'agent:run-pause',
+      'agent:run-resume',
+      'agent:run-approve',
+      'agent:run-reject',
       'settings:get',
       'settings:update',
       'research:start',
@@ -625,6 +634,86 @@ describe('ipc integration', () => {
     const listed = await call('agent:orch-list')
 
     assert.ok(Array.isArray(listed.runs))
+  })
+
+  it('gates agent runs on auth and validates run input', async () => {
+    await ensureWorkspace()
+
+    const restore = clearSecrets()
+
+    try {
+      await assert.rejects(
+        () => call('agent:run-start', { task: 'Fix the build' }),
+        /API key is not configured/
+      )
+      await assert.rejects(
+        () => call('agent:run-start', {}),
+        /Invalid task/
+      )
+      await assert.rejects(
+        () => call('agent:run-start', { task: 'x', researchMode: 'sometimes' }),
+        /research mode/
+      )
+      await assert.rejects(
+        () => call('agent:run-start', { task: 'x', includeChat: 'yes' }),
+        /includeChat/
+      )
+      await assert.rejects(
+        () => call('agent:run-get', { runId: 'ar-00000000-000000' }),
+        /not found/
+      )
+      await assert.rejects(
+        () =>
+          call('agent:run-proposal', {
+            runId: 'ar-00000000-000000',
+            subtask: 0,
+          }),
+        /not found/
+      )
+      await assert.rejects(
+        () =>
+          call('agent:run-proposal', {
+            runId: 'ar-00000000-000000',
+            subtask: 99,
+          }),
+        /Invalid subtask index/
+      )
+      await assert.rejects(
+        () => call('agent:run-cancel', { runId: 'nope' }),
+        /Invalid agent run id/
+      )
+      await assert.rejects(
+        () => call('agent:run-pause', { runId: 'ar-00000000-000000' }),
+        /not found/
+      )
+      await assert.rejects(
+        () => call('agent:run-resume', { runId: 'ar-00000000-000000' }),
+        /not found/
+      )
+      await assert.rejects(
+        () =>
+          call('agent:run-approve', {
+            runId: 'ar-00000000-000000',
+            approvalId: 'ap-00000000-000000',
+          }),
+        /not found/
+      )
+      await assert.rejects(
+        () =>
+          call('agent:run-reject', {
+            runId: 'ar-00000000-000000',
+            approvalId: 'bad',
+          }),
+        /not found/
+      )
+
+      const listed = await call('agent:run-list')
+
+      assert.ok(Array.isArray(listed.runs))
+      assert.ok(Array.isArray(listed.corrupt))
+    } finally {
+      restore()
+    }
   })
 
   it('opens, refreshes, and closes a workspace through IPC', async () => {

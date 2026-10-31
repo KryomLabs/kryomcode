@@ -335,3 +335,79 @@ export function clearAgentDraft(root: string): void {
     writeMap(AGENT_KEY, map)
   }
 }
+
+// Autonomous-run workspace UI state (Milestone 3): the composer
+// draft plus the selected run id per workspace root. The run itself
+// is disk-backed; this only restores the view.
+export interface AgentRunUI {
+  version: 1
+  savedAt: string
+  selectedRunId: string | null
+  task: string
+  selectedFiles: string[]
+  includeActive: boolean
+  includeChat: boolean
+  researchMode: string
+  model: string
+}
+
+const AGENT_RUN_UI_KEY = 'kryom.session.agent-run-ui.v1'
+const MAX_TASK_CHARS = 16 * 1024
+
+export function saveAgentRunUI(
+  root: string,
+  ui: Omit<AgentRunUI, 'version' | 'savedAt'>
+): void {
+  const map = readMap(AGENT_RUN_UI_KEY) as Record<string, AgentRunUI>
+
+  map[root] = {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    selectedRunId:
+      typeof ui.selectedRunId === 'string' ? ui.selectedRunId : null,
+    task: ui.task.slice(0, MAX_TASK_CHARS),
+    selectedFiles: ui.selectedFiles.filter(
+      (entry) => typeof entry === 'string'
+    ).slice(0, 32),
+    includeActive: ui.includeActive === true,
+    includeChat: ui.includeChat === true,
+    researchMode: ui.researchMode,
+    model: ui.model,
+  }
+
+  writeMap(AGENT_RUN_UI_KEY, trimRoots(map))
+}
+
+export function loadAgentRunUI(root: string): AgentRunUI | null {
+  const entry = readMap(AGENT_RUN_UI_KEY)[root]
+
+  if (!isRecord(entry) || entry.version !== 1) {
+    return null
+  }
+
+  const selectedFiles = asStringArray(entry.selectedFiles)
+
+  if (
+    typeof entry.savedAt !== 'string' ||
+    typeof entry.task !== 'string' ||
+    selectedFiles === null ||
+    typeof entry.includeActive !== 'boolean' ||
+    typeof entry.researchMode !== 'string' ||
+    typeof entry.model !== 'string' ||
+    !(typeof entry.selectedRunId === 'string' || entry.selectedRunId === null)
+  ) {
+    return null
+  }
+
+  return {
+    version: 1,
+    savedAt: entry.savedAt,
+    selectedRunId: entry.selectedRunId,
+    task: entry.task,
+    selectedFiles,
+    includeActive: entry.includeActive,
+    includeChat: entry.includeChat === true,
+    researchMode: entry.researchMode,
+    model: entry.model,
+  }
+}

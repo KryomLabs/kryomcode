@@ -60,6 +60,75 @@ describe('context-snapshot', () => {
     assert.ok(excerpt.at)
   })
 
+  it('omits empty history as null when chat is optional', async () => {
+    const root = await openWorkspace()
+
+    // No history seeded: optional callers get null, never a throw
+    // and never a fabricated excerpt.
+    assert.equal(await buildChatExcerpt({ required: false }), null)
+
+    await saveChat([{ role: 'user', content: 'hello' }], { root })
+
+    const excerpt = await buildChatExcerpt({ required: false })
+
+    assert.equal(excerpt.messageCount, 1)
+    assert.ok(excerpt.excerpt.includes('hello'))
+
+    const snapshot = await buildContextSnapshot({
+      files: [],
+      researchSessionId: null,
+      includeChat: true,
+      chatRequired: false,
+      workspaceBrief: '',
+      projectName: path.basename(root),
+    })
+
+    assert.equal(snapshot.chat.messageCount, 1)
+  })
+
+  it('omits missing history from optional snapshots without inventing sources', async () => {
+    const root = await openWorkspace()
+
+    const snapshot = await buildContextSnapshot({
+      files: [{ relativePath: 'a.ts', bytes: 3, content: 'abc' }],
+      researchSessionId: null,
+      includeChat: true,
+      chatRequired: false,
+      workspaceBrief: 'Project type: node.',
+      projectName: path.basename(root),
+    })
+
+    assert.equal(snapshot.chat, null)
+    assert.equal(snapshot.files.length, 1)
+    assert.equal(snapshot.workspace.projectName, path.basename(root))
+  })
+
+  it('still throws for unexpected retrieval failures when chat is optional', async () => {
+    const root = await openWorkspace()
+
+    // A directory where the chat file belongs breaks storage reads:
+    // that is a genuine failure, not an empty history.
+    await fs.mkdir(path.join(root, '.kryom'), { recursive: true })
+    await fs.mkdir(path.join(root, '.kryom', 'chat.json'))
+
+    await assert.rejects(
+      () => buildChatExcerpt({ required: false }),
+      /Storage path is not a file/
+    )
+    await assert.rejects(
+      () =>
+        buildContextSnapshot({
+          files: [],
+          researchSessionId: null,
+          includeChat: true,
+          chatRequired: false,
+          workspaceBrief: '',
+          projectName: path.basename(root),
+        }),
+      /Storage path is not a file/
+    )
+  })
+
   it('fingerprints file context with normalized paths', () => {
     const files = snapshotFiles([
       {
