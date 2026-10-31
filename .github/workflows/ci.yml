@@ -65,14 +65,13 @@ jobs:
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 
-      # The macOS runners (7 GB RAM) exhaust Node heap while
-      # bundling the Monaco-heavy renderer: raise the cap for the build.
-      - name: Raise Node heap for macOS build
-        if: runner.os == 'macOS'
-        run: echo "NODE_OPTIONS=--max-old-space-size=4096" >> "$GITHUB_ENV"
-
+      # macOS runners (7 GB) need a bigger heap for the Monaco-heavy
+      # build. NOTE: $GITHUB_ENV rejects NODE_OPTIONS, so this must be
+      # static step env; the empty fallback on other runners is a no-op.
       - name: Build production renderer
         run: npm run build
+        env:
+          NODE_OPTIONS: ${{ runner.os == 'macOS' && '--max-old-space-size=4096' || '' }}
 
   pack:
     name: Pack and verify unpacked app (${{ matrix.os }})
@@ -101,14 +100,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # The macOS runners (7 GB RAM) exhaust Node heap while
-      # bundling the Monaco-heavy renderer: raise the cap for the build.
-      - name: Raise Node heap for macOS build
-        if: runner.os == 'macOS'
-        run: echo "NODE_OPTIONS=--max-old-space-size=4096" >> "$GITHUB_ENV"
-
+      # macOS runners (7 GB) need a bigger heap for the Monaco-heavy
+      # build. NOTE: $GITHUB_ENV rejects NODE_OPTIONS, so this must be
+      # static step env; the empty fallback on other runners is a no-op.
       - name: Pack unpacked app
         run: npm run ${{ matrix.pack_script }}
+        env:
+          NODE_OPTIONS: ${{ runner.os == 'macOS' && '--max-old-space-size=4096' || '' }}
 
       # Full layout gate is Windows-only: check-release-contents.cjs
       # asserts the win-unpacked layout (KryomCode.exe). Other platforms
