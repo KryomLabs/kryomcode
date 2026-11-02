@@ -1,6 +1,9 @@
 const {
   runCommand,
 } = require('../terminal/terminal.service.cjs')
+const {
+  killProcessesByOrigin,
+} = require('../terminal/process-manager.cjs')
 const { parseOutput } = require('./problem-parser.cjs')
 const { diagnoseRun } = require('./diagnosis.cjs')
 const { createLogger, redactText } = require('../../utils/logger.cjs')
@@ -40,7 +43,7 @@ function getObservedRun(runId) {
 // the output into structured diagnostics. success is true only when the
 // command exited 0 without timing out: failures are never reported green.
 
-async function runDiagnostics(command, { signal, timeoutMs } = {}) {
+async function runDiagnostics(command, { signal, timeoutMs, origin } = {}) {
   if (
     timeoutMs !== undefined &&
     (typeof timeoutMs !== 'number' || !Number.isFinite(timeoutMs) || timeoutMs <= 0)
@@ -52,7 +55,9 @@ async function runDiagnostics(command, { signal, timeoutMs } = {}) {
   const started = Date.now()
   const result = await runCommand(
     command,
-    timeoutMs === undefined ? { signal } : { signal, timeoutMs }
+    timeoutMs === undefined
+      ? { signal, origin: origin ?? 'diagnostics' }
+      : { signal, timeoutMs, origin: origin ?? 'diagnostics' }
   )
   const completedAt = new Date().toISOString()
   const durationMs = Date.now() - started
@@ -109,8 +114,18 @@ async function runDiagnostics(command, { signal, timeoutMs } = {}) {
   }
 }
 
+// Origin-scoped cancellation for user-driven diagnostics runs
+// (Problems panel Stop). Agent verification runs carry their own
+// 'agent' origin and are never touched by this channel.
+function cancelDiagnostics() {
+  const { killed } = killProcessesByOrigin('diagnostics')
+
+  return { killed }
+}
+
 module.exports = {
   MAX_OBSERVED_RUNS,
   runDiagnostics,
+  cancelDiagnostics,
   getObservedRun,
 }

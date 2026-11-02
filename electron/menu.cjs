@@ -117,6 +117,11 @@ function buildMenuTemplate(deps) {
           enabled: hasWorkspace,
         }),
         { type: 'separator' },
+        commandItem('view.settings', {
+          label: 'Preferences: Open Settings',
+          accelerator: 'CmdOrCtrl+,',
+        }),
+        { type: 'separator' },
         { role: 'quit', label: 'Exit' },
       ],
     },
@@ -176,15 +181,34 @@ function buildMenuTemplate(deps) {
           accelerator: 'CmdOrCtrl+Shift+G',
         }),
         commandItem('view.run', {
-          label: 'Run and Diagnostics',
+          label: 'Run and Debug',
           accelerator: 'CmdOrCtrl+Shift+D',
+        }),
+        commandItem('view.extensions', {
+          label: 'Extensions',
+          accelerator: 'CmdOrCtrl+Shift+X',
+        }),
+        commandItem('view.aiWorkspace', {
+          label: 'AI Workspace',
+          accelerator: 'CmdOrCtrl+Shift+A',
+        }),
+        commandItem('view.knowledge', {
+          label: 'Knowledge',
+          accelerator: 'CmdOrCtrl+Shift+K',
+        }),
+        commandItem('view.history', {
+          label: 'History',
+          accelerator: 'CmdOrCtrl+Shift+H',
         }),
         commandItem('view.home', {
           label: 'Welcome',
-          accelerator: 'CmdOrCtrl+Shift+A',
+        }),
+        commandItem('view.palette', {
+          label: 'Command Palette…',
+          accelerator: 'CmdOrCtrl+Shift+P',
         }),
         commandItem('view.metaAI', {
-          label: 'New Meta AI Session',
+          label: 'New AI Thread',
           accelerator: 'CmdOrCtrl+Shift+M',
         }),
         commandItem('view.intel', {
@@ -207,7 +231,12 @@ function buildMenuTemplate(deps) {
           label: 'Terminal Panel',
           accelerator: 'CmdOrCtrl+`',
         }),
+        commandItem('view.problems', {
+          label: 'Problems Panel',
+          accelerator: 'CmdOrCtrl+Shift+J',
+        }),
         commandItem('view.output', { label: 'Output Panel' }),
+        commandItem('view.debugConsole', { label: 'Debug Console Panel' }),
         { type: 'separator' },
         commandItem('view.toggleSidebar', {
           label: 'Toggle Sidebar',

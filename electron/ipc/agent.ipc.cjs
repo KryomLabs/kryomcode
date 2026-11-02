@@ -905,6 +905,23 @@ module.exports = function registerAgentIPC({
     )
   })
 
+  // Origin-scoped cancellation for agent command execution (agent
+  // verification Stop). Autonomous runs keep their own per-run abort
+  // path and treat an externally cancelled check as a first-class
+  // cancelled outcome; this channel never touches user-terminal or
+  // diagnostics runs.
+  ipcMain.handle('agent:cancel-verification', async (event) => {
+    if (!isTrustedSender(event)) {
+      throw new Error('Unauthorized agent request.')
+    }
+
+    const {
+      cancelRunningProcesses,
+    } = require('../services/terminal/terminal.service.cjs')
+
+    return cancelRunningProcesses('agent')
+  })
+
   ipcMain.handle('agent:run-reject', async (event, payload) => {
     if (!isTrustedSender(event)) {
       throw new Error('Unauthorized agent request.')

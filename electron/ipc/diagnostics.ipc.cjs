@@ -2,6 +2,7 @@ const { ipcMain, app, dialog } = require('electron')
 
 const {
   runDiagnostics,
+  cancelDiagnostics,
 } = require('../services/diagnostics/diagnostics.service.cjs')
 const {
   assertPlainObject,
@@ -26,6 +27,14 @@ module.exports = function registerDiagnosticsIPC({
     assertNonEmptyString(payload.command, 'command', 2000)
 
     const command = payload.command
+    // Agent verification reuses the diagnostics executor but must stay
+    // cancellable independently, so it tags its runs at creation. The
+    // allowlist is exhaustive: anything else is rejected, never coerced.
+    const source = payload.source === undefined ? 'diagnostics' : payload.source
+
+    if (source !== 'diagnostics' && source !== 'agent') {
+      throw new Error("Invalid diagnostics source: expected 'diagnostics' or 'agent'.")
+    }
 
     // Main-process enforcement, shared with terminal:run: destructive
     // diagnostics commands face a native dialog here.
@@ -34,7 +43,17 @@ module.exports = function registerDiagnosticsIPC({
       source: 'diagnostics',
     })
 
-    return runDiagnostics(command)
+    return runDiagnostics(command, { origin: source })
+  })
+
+  // Operation-scoped cancellation for user-driven diagnostics runs
+  // (Problems panel Stop). Never touches user-terminal or agent runs.
+  ipcMain.handle('diagnostics:cancel', async (event) => {
+    if (!isTrustedSender(event)) {
+      throw new Error('Unauthorized diagnostics request.')
+    }
+
+    return cancelDiagnostics()
   })
 
   // Advanced quality intelligence (3C.5). Computed from project

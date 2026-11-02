@@ -2686,7 +2686,7 @@ async function runVerifyingPhase(root, record, options) {
   emit(record, 'command', `Subtask ${next.index + 1}: running \`${command.slice(0, 200)}\` (${review.verdict === 'run' ? 'plan-approved review class' : 'explicitly approved'}).`)
   await writeRun(root, record)
 
-  const result = await runDiagnostics(command, { signal: signalFor(record.id) })
+  const result = await runDiagnostics(command, { signal: signalFor(record.id), origin: 'agent' })
 
   await withRunLock(record.id, async () => {
     const fresh = await readRun(root, record.id)
@@ -2953,7 +2953,7 @@ async function runRepairingPhase(root, record, options) {
   )
   await writeRun(root, record)
 
-  const result = await runDiagnostics(pointer.command, { signal: signalFor(record.id) })
+  const result = await runDiagnostics(pointer.command, { signal: signalFor(record.id), origin: 'agent' })
 
   if (result.cancelled) {
     await withRunLock(record.id, async () => {

@@ -30,6 +30,7 @@ const {
 const {
   createAppProtocolHandler,
 } = require('./security/protocol-handler.cjs')
+const { shouldAllowPermission } = require('./security/permissions.cjs')
 
 // Private renderer scheme. Registered before ready (an Electron
 // requirement): standard + secure so the packaged UI gets a stable
@@ -522,12 +523,12 @@ function createWindow() {
 
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
 
-  // KryomCode needs no Chromium permissions (camera, microphone,
-  // geolocation, notifications, ...): deny them all rather than
-  // inheriting Electron's defaults.
+  // Chromium permissions stay denied except clipboard writes (see
+  // security/permissions.cjs): every in-app Copy button needs
+  // clipboard-sanitized-write; reads stay denied.
   window.webContents.session.setPermissionRequestHandler(
-    (_contents, _permission, callback) => {
-      callback(false)
+    (_contents, permission, callback) => {
+      callback(shouldAllowPermission(permission))
     }
   )
 

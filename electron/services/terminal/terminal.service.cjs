@@ -8,6 +8,8 @@ const {
   unregisterProcess,
   listProcesses,
   killAllProcesses,
+  killProcessesByOrigin,
+  normalizeOrigin,
   killProcessTree,
   markKilled,
   consumeKillMark,
@@ -57,7 +59,7 @@ async function runCommand(command, options = {}) {
   validateCommand(command)
 
   const warnings = classifyCommand(command)
-  const { signal, timeoutMs = TIMEOUT_MS } = options ?? {}
+  const { signal, timeoutMs = TIMEOUT_MS, origin } = options ?? {}
 
   return new Promise((resolve) => {
     let output = ''
@@ -82,7 +84,10 @@ async function runCommand(command, options = {}) {
       markDetachedProcess(child)
     }
 
-    const processId = registerProcess(child, { command })
+    const processId = registerProcess(child, {
+      command,
+      origin: normalizeOrigin(origin),
+    })
 
     const append = (chunk) => {
       const text = chunk.toString()
@@ -179,14 +184,21 @@ async function runCommand(command, options = {}) {
   })
 }
 
-function listRunningProcesses() {
-  return listProcesses()
+function listRunningProcesses(filter) {
+  return listProcesses(filter ?? {})
 }
 
-function cancelRunningProcesses() {
-  return killAllProcesses()
+// Operation-scoped cancellation (Phase 0): kills only the given
+// origin (default 'user-terminal'). The { killed } shape is the
+// stable contract shared by every cancel channel.
+function cancelRunningProcesses(origin) {
+  const { killed } = killProcessesByOrigin(origin)
+
+  return { killed }
 }
 
+// Shutdown path only (main.cjs before-quit): reaps every registered
+// child regardless of origin. Never use for UI-driven cancellation.
 function killAllActiveProcesses() {
   killAllProcesses()
 }

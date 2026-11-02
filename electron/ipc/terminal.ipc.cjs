@@ -34,7 +34,7 @@ module.exports = function registerTerminalIPC({
       source: 'terminal',
     })
 
-    return runCommand(text)
+    return runCommand(text, { origin: 'user-terminal' })
   })
 
   ipcMain.handle('terminal:cancel', async (event) => {
@@ -42,7 +42,9 @@ module.exports = function registerTerminalIPC({
       throw new Error('Unauthorized terminal request.')
     }
 
-    return cancelRunningProcesses()
+    // Scoped: user-terminal runs only. Diagnostics and agent runs
+    // have their own cancel channels and are never touched here.
+    return cancelRunningProcesses('user-terminal')
   })
 
   ipcMain.handle('terminal:status', async (event) => {

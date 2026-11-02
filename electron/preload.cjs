@@ -227,6 +227,9 @@ contextBridge.exposeInMainWorld('kryom', {
   cancelAgentRun: (payload) =>
     ipcRenderer.invoke('agent:run-cancel', payload),
 
+  cancelAgentVerification: () =>
+    ipcRenderer.invoke('agent:cancel-verification'),
+
   pauseAgentRun: (payload) =>
     ipcRenderer.invoke('agent:run-pause', payload),
 
@@ -289,6 +292,9 @@ contextBridge.exposeInMainWorld('kryom', {
 
   runDiagnostics: (payload) =>
     ipcRenderer.invoke('diagnostics:run', payload),
+
+  cancelDiagnostics: () =>
+    ipcRenderer.invoke('diagnostics:cancel'),
 
   getWorkspaceSummary: () =>
     ipcRenderer.invoke('intelligence:summary'),

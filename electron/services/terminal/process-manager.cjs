@@ -6,6 +6,24 @@ const { spawnSync } = require('node:child_process')
 let nextId = 1
 const active = new Map()
 
+// Operation origins (Phase 0 cancellation isolation). Every registered
+// child belongs to exactly one origin, and cancellation targets one
+// origin at a time, so a terminal Cancel can never kill a diagnostics
+// or agent operation (git runs in its own registry and was never
+// shared). Origins are assigned by main-process callers only; the
+// renderer never supplies one. 'user-terminal' is the default so
+// direct runCommand callers keep their historical behavior.
+const PROCESS_ORIGINS = Object.freeze([
+  'user-terminal',
+  'diagnostics',
+  'agent',
+])
+const DEFAULT_ORIGIN = 'user-terminal'
+
+function normalizeOrigin(value) {
+  return PROCESS_ORIGINS.includes(value) ? value : DEFAULT_ORIGIN
+}
+
 // Children killed through a cancel path (as opposed to timeouts or
 // natural exits). Runners consume the mark when their child closes
 // so results report `cancelled` honestly. Weak refs: entries vanish
@@ -88,12 +106,13 @@ function killProcessTree(child, overrides = {}) {
   }
 }
 
-function registerProcess(child, { command } = {}) {
+function registerProcess(child, { command, origin } = {}) {
   const id = `proc-${nextId++}`
 
   active.set(id, {
     child,
     command: typeof command === 'string' ? command.slice(0, 200) : '',
+    origin: normalizeOrigin(origin),
     startedAt: Date.now(),
   })
 
@@ -104,14 +123,51 @@ function unregisterProcess(id) {
   active.delete(id)
 }
 
-function listProcesses() {
-  return [...active.entries()].map(([id, meta]) => ({
-    id,
-    command: meta.command,
-    startedAt: meta.startedAt,
-  }))
+function listProcesses(filter = {}) {
+  const onlyOrigin =
+    filter && typeof filter.origin === 'string'
+      ? normalizeOrigin(filter.origin)
+      : null
+
+  return [...active.entries()]
+    .filter(([, meta]) => onlyOrigin === null || meta.origin === onlyOrigin)
+    .map(([id, meta]) => ({
+      id,
+      command: meta.command,
+      startedAt: meta.startedAt,
+      origin: meta.origin,
+    }))
 }
 
+// Origin-scoped cancellation: kills only the entries tagged with the
+// given origin and reports how many died. Unknown origins normalize
+// to the default scope instead of throwing, so a bad caller fails
+// narrow rather than loud. Retry semantics match killAllProcesses:
+// failed kills stay registered for a later attempt.
+function killProcessesByOrigin(origin) {
+  const scope = normalizeOrigin(origin)
+  let killed = 0
+
+  for (const [id, meta] of active) {
+    if (meta.origin !== scope) {
+      continue
+    }
+
+    markKilled(meta.child)
+
+    if (killProcessTree(meta.child)) {
+      killed += 1
+      active.delete(id)
+    }
+  }
+
+  return { killed, origin: scope }
+}
+
+// Global cancellation: kills every registered child regardless of
+// origin. Reserved for application shutdown (main.cjs before-quit);
+// all UI-driven cancellation uses killProcessesByOrigin so one
+// surface can never kill another surface's operations.
 function killAllProcesses() {
   let killed = 0
 
@@ -135,6 +191,9 @@ module.exports = {
   unregisterProcess,
   listProcesses,
   killAllProcesses,
+  killProcessesByOrigin,
+  normalizeOrigin,
+  PROCESS_ORIGINS,
   killProcessTree,
   markKilled,
   consumeKillMark,
