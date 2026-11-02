@@ -38,6 +38,19 @@ describe('MarkdownLite', () => {
     expect(calls).toContain('print')
   })
 
+  it('reports copy denial instead of failing silently', async () => {
+    const writeText = vi.fn(async () => {
+      throw new Error('NotAllowedError')
+    })
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    })
+    render(<MarkdownLite text={'```js\nconst x = 1\n```'} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+    expect(await screen.findByText('Copy unavailable')).not.toBeNull()
+  })
+
   it('copies code to the clipboard', async () => {
     const writeText = vi.fn(async () => undefined)
     Object.defineProperty(navigator, 'clipboard', {

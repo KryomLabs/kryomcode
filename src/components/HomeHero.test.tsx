@@ -1,81 +1,92 @@
-// Home hero tests: branding, mode switching, and prompt submit.
-// The submit path goes through the form's onSubmit (jsdom does not
-// perform implicit Enter-to-submit, so keyboard handling is covered
-// by asserting the form wiring, not a key event).
+// Welcome hero tests: exactly one headline, no badge/brand/mode
+// clutter, composer + toolbar wiring.
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
-import { HomeHero } from './HomeHero'
+import { HomeHero, type HomeHeroProps } from './HomeHero'
 
-function setup(mode: 'chat' | 'research' = 'chat') {
-  const onModeChange = vi.fn()
-  const onSubmit = vi.fn()
-
-  render(<HomeHero mode={mode} onModeChange={onModeChange} onSubmit={onSubmit} />)
-
-  return { onModeChange, onSubmit }
+function baseProps(overrides: Partial<HomeHeroProps> = {}): HomeHeroProps {
+  return {
+    mode: 'chat',
+    draft: '',
+    onDraftChange: vi.fn(),
+    placeholder: 'Ask anything about your code...',
+    maxLength: 12000,
+    model: 'muse-spark-1.3',
+    modelOptions: [{ id: 'muse-spark-1.3', label: 'Muse Spark 1.3' }],
+    onModelChange: vi.fn(),
+    approvalRequired: true,
+    onToggleApproval: vi.fn(),
+    attachments: [],
+    onAttach: vi.fn(),
+    onRemoveAttachment: vi.fn(),
+    attaching: false,
+    attachError: '',
+    onSubmit: vi.fn(),
+    projectName: null,
+    onOpenProject: vi.fn(),
+    activeFileName: '',
+    onOpenActiveFile: null,
+    onNewConversation: vi.fn(),
+    ...overrides,
+  }
 }
 
 describe('HomeHero', () => {
-  it('renders branding, headline, and both modes', () => {
-    setup()
-    expect(screen.getByText('KryomCode')).not.toBeNull()
-    expect(screen.getByText('What should we build & discover?')).not.toBeNull()
-    expect(screen.getByRole('button', { name: 'Chat' })).not.toBeNull()
-    expect(screen.getByRole('button', { name: 'Research' })).not.toBeNull()
-  })
+  it('renders exactly one headline and no brand clutter', () => {
+    const { container } = render(<HomeHero {...baseProps()} />)
 
-  it('marks the active mode pressed', () => {
-    setup('research')
-    expect(screen.getByRole('button', { name: 'Chat' }).getAttribute('aria-pressed')).toBe(
-      'false'
-    )
     expect(
-      screen.getByRole('button', { name: 'Research' }).getAttribute('aria-pressed')
-    ).toBe('true')
+      screen.getByText('What should we build & discover?')
+    ).not.toBeNull()
+    expect(container.querySelector('.hero-mark')).toBeNull()
+    expect(container.querySelector('.hero-brand')).toBeNull()
+    expect(container.querySelector('.hero-modes')).toBeNull()
+    expect(screen.queryByText('KryomCode')).toBeNull()
   })
 
-  it('switches modes through the segmented control', () => {
-    const { onModeChange } = setup('chat')
-    fireEvent.click(screen.getByRole('button', { name: 'Research' }))
-    expect(onModeChange).toHaveBeenCalledWith('research')
+  it('shows the composer with mode placeholder and counter', () => {
+    render(
+      <HomeHero
+        {...baseProps({
+          mode: 'agent',
+          placeholder: 'Describe what you want to build...',
+          maxLength: 4000,
+          draft: 'hello',
+        })}
+      />
+    )
+
+    expect(
+      screen.getByPlaceholderText('Describe what you want to build...')
+    ).not.toBeNull()
+    expect(screen.getByText(/5 \/ 4,000/)).not.toBeNull()
   })
 
-  it('shows a mode-specific hint and prompt', () => {
-    setup('research')
-    expect(screen.getByText(/cited sources/)).not.toBeNull()
-    expect(screen.getByLabelText('Research topic')).not.toBeNull()
-  })
-
-  it('keeps Send disabled until text is entered', () => {
-    setup()
-    const send = screen.getByRole('button', { name: 'Send' })
-    expect((send as HTMLButtonElement).disabled).toBe(true)
-    fireEvent.change(screen.getByLabelText('Chat prompt'), {
-      target: { value: '  ' },
+  it('routes toolbar actions through real handlers', () => {
+    const props = baseProps({
+      projectName: 'demo',
+      activeFileName: 'main.ts',
+      onOpenActiveFile: vi.fn(),
     })
-    expect((send as HTMLButtonElement).disabled).toBe(true)
-    fireEvent.change(screen.getByLabelText('Chat prompt'), {
-      target: { value: 'hello' },
-    })
-    expect((send as HTMLButtonElement).disabled).toBe(false)
+
+    render(<HomeHero {...props} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Project: demo/ }))
+    expect(props.onOpenProject).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByRole('button', { name: /File: main.ts/ }))
+    expect(props.onOpenActiveFile).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'New conversation' }))
+    expect(props.onNewConversation).toHaveBeenCalledTimes(1)
   })
 
-  it('submits trimmed text and keeps the field', () => {
-    const { onSubmit } = setup()
-    const input = screen.getByLabelText('Chat prompt')
-    fireEvent.change(input, { target: { value: '  explain this  ' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
-    expect(onSubmit).toHaveBeenCalledWith('explain this')
-    // The parent navigates on success; the hero never eats text.
-    expect((input as HTMLInputElement).value).toBe('  explain this  ')
-  })
+  it('offers Choose Project when none is open', () => {
+    render(<HomeHero {...baseProps({ projectName: null })} />)
 
-  it('never submits blank text', () => {
-    const { onSubmit } = setup()
-    fireEvent.change(screen.getByLabelText('Chat prompt'), {
-      target: { value: '   ' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
-    expect(onSubmit).not.toHaveBeenCalled()
+    expect(
+      screen.getByRole('button', { name: 'Choose Project' })
+    ).not.toBeNull()
+    expect(screen.queryByText(/File:/)).toBeNull()
   })
 })

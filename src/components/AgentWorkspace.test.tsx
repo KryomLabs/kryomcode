@@ -4,6 +4,7 @@
 // truthfully and cites server-issued approval ids.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import { AgentWorkspace } from './AgentWorkspace'
 
 const CATALOG_MODELS = [
@@ -372,6 +373,115 @@ describe('AgentWorkspace', () => {
     })
   })
 
+  it('rejects a plan without a revision on Reject & cancel', async () => {
+    const bridge = mockBridge()
+    bridge.listAgentRuns.mockResolvedValueOnce({
+      runs: [
+        {
+          id: 'ar-test-run',
+          task: 'Fix the add function.',
+          state: 'waiting_for_approval',
+          live: false,
+          interrupted: false,
+          createdAt: '2026-10-31T00:00:00.000Z',
+          updatedAt: '2026-10-31T00:01:00.000Z',
+          finishedAt: null,
+          subtasks: [],
+          checkCounts: { passed: 0, failed: 0, skipped: 0, notExecuted: 0 },
+          eventCount: 2,
+          error: null,
+        },
+      ],
+      corrupt: [],
+    })
+    render(<AgentWorkspace {...baseProps()} />)
+
+    fireEvent.change(await screen.findByLabelText('Run history'), {
+      target: { value: 'ar-test-run' },
+    })
+
+    expect(await screen.findByText('Plan approval requested')).not.toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reject & cancel' }))
+
+    await waitFor(() => expect(bridge.rejectAgentRun).toHaveBeenCalledTimes(1))
+    expect(bridge.rejectAgentRun).toHaveBeenCalledWith({
+      runId: 'ar-test-run',
+      approvalId: 'ap-plan-1',
+      reason: undefined,
+      revise: false,
+    })
+  })
+
+  it('keeps the approval note across re-renders and clears it for the next approval', async () => {
+    const bridge = mockBridge()
+    bridge.listAgentRuns.mockResolvedValueOnce({
+      runs: [
+        {
+          id: 'ar-test-run',
+          task: 'Fix the add function.',
+          state: 'waiting_for_approval',
+          live: false,
+          interrupted: false,
+          createdAt: '2026-10-31T00:00:00.000Z',
+          updatedAt: '2026-10-31T00:01:00.000Z',
+          finishedAt: null,
+          subtasks: [],
+          checkCounts: { passed: 0, failed: 0, skipped: 0, notExecuted: 0 },
+          eventCount: 2,
+          error: null,
+        },
+      ],
+      corrupt: [],
+    })
+    // Approving the plan moves the same run to a command approval.
+    bridge.approveAgentRun.mockResolvedValueOnce(
+      makeRun({
+        pendingApproval: {
+          id: 'ap-cmd-2',
+          kind: 'command',
+          createdAt: '2026-10-31T00:03:00.000Z',
+          payload: {
+            subtask: 0,
+            title: 'Fix the add function',
+            check: 'npm test',
+            command: 'npm test',
+            purpose: 'Run npm test to verify.',
+            review: {
+              verdict: 'run',
+              reason: 'Project script execution.',
+              warnings: [],
+            },
+          },
+        },
+      })
+    )
+    render(<AgentWorkspace {...baseProps()} />)
+
+    fireEvent.change(await screen.findByLabelText('Run history'), {
+      target: { value: 'ar-test-run' },
+    })
+
+    expect(await screen.findByText('Plan approval requested')).not.toBeNull()
+
+    fireEvent.change(screen.getByLabelText(/Note/), {
+      target: { value: 'Keep me' },
+    })
+    // A parent re-render for the same approval must not wipe the note.
+    fireEvent.change(screen.getByLabelText('Agent model'), {
+      target: { value: 'muse-wonder-1.0' },
+    })
+    expect((screen.getByLabelText(/Note/) as HTMLInputElement).value).toBe(
+      'Keep me'
+    )
+
+    // The next approval on the same run clears the note.
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+
+    expect(await screen.findByText('Command approval requested')).not.toBeNull()
+    expect((screen.getByLabelText(/Note/) as HTMLInputElement).value).toBe('')
+  })
+
   it('renders command approvals with policy and declines with a note', async () => {
     const bridge = mockBridge()
     const commandRun = makeRun({
@@ -640,5 +750,125 @@ describe('AgentWorkspace', () => {
 
     expect(await screen.findByText(/was interrupted/)).not.toBeNull()
     expect(screen.getByText(/Subtask 1 failed to apply/)).not.toBeNull()
+  })
+})
+
+describe('AgentWorkspace Phase C console', () => {
+  function listWith(state: KryomAgentRunState): {
+    runs: KryomAgentRunListItem[]
+    corrupt: string[]
+  } {
+    return {
+      runs: [
+        {
+          id: 'ar-test-run',
+          task: 'Fix the add function.',
+          state,
+          live: false,
+          interrupted: false,
+          createdAt: '2026-10-31T00:00:00.000Z',
+          updatedAt: '2026-10-31T00:01:00.000Z',
+          finishedAt: null,
+          subtasks: [],
+          checkCounts: { passed: 0, failed: 0, skipped: 0, notExecuted: 0 },
+          eventCount: 2,
+          error: null,
+        },
+      ],
+      corrupt: [],
+    }
+  }
+
+  async function openRun(run: KryomAgentRun, wrap?: (node: ReactNode) => ReactNode) {
+    const bridge = mockBridge()
+    bridge.listAgentRuns.mockResolvedValueOnce(listWith(run.state))
+    bridge.getAgentRun.mockResolvedValue(run)
+    const node = <AgentWorkspace {...baseProps()} />
+    render(wrap ? wrap(node) : node)
+
+    fireEvent.change(await screen.findByLabelText('Run history'), {
+      target: { value: run.id },
+    })
+    await screen.findByText('Execution plan')
+
+    return bridge
+  }
+
+  it('shows run identity with started/updated times', async () => {
+    await openRun(makeRun())
+
+    expect(screen.getByTitle('Run ar-test-run')).not.toBeNull()
+    expect(screen.getByText(/Started .* Updated /)).not.toBeNull()
+  })
+
+  it('keeps the active run model and says so when the selector differs', async () => {
+    await openRun(makeRun({ state: 'executing', pendingApproval: null }))
+
+    expect(screen.queryByText(/Active run keeps/)).toBeNull()
+
+    fireEvent.change(screen.getByLabelText('Agent model'), {
+      target: { value: 'muse-wonder-1.0' },
+    })
+
+    expect(await screen.findByText(/Active run keeps/)).not.toBeNull()
+  })
+
+  it('bounds long timelines until Follow or Show more expands them', async () => {
+    const events = Array.from({ length: 60 }, (_, seq) => ({
+      seq: seq + 1,
+      at: '2026-10-31T00:00:00.000Z',
+      kind: 'phase',
+      phase: 'executing',
+      message: `event message ${seq + 1}`,
+      data: null,
+    }))
+    await openRun(makeRun({ state: 'executing', pendingApproval: null, events }))
+
+    // Follow mode keeps the live tail visible.
+    expect(screen.getByText('event message 60')).not.toBeNull()
+
+    fireEvent.click(screen.getByLabelText('Follow'))
+
+    expect(screen.queryByText('event message 60')).toBeNull()
+    fireEvent.click(screen.getByText('Show more (10 remaining)'))
+    expect(screen.getByText('event message 60')).not.toBeNull()
+  })
+
+  it('renders hunk headers when a proposed change expands', async () => {
+    await openRun(makeRun())
+
+    fireEvent.click(screen.getByRole('button', { name: /\/proj\/src\/calc\.js/ }))
+
+    expect(await screen.findByText(/@@ -1,2 \+1,2 @@/)).not.toBeNull()
+  })
+
+  it('shows per-subtask checkpoints with restore actions', async () => {
+    const { DialogProvider } = await import('./dialogs')
+    await openRun(
+      makeRun({
+        state: 'executing',
+        pendingApproval: null,
+        subtasks: [
+          {
+            index: 0,
+            title: 'Fix the add function',
+            state: 'applied',
+            files: [{ path: 'src/calc.js', exists: true }],
+            verification: 'npm test',
+            verificationNote: '',
+            check: null,
+            conclusion: null,
+            runId: null,
+            checkpointId: 'ckpt-0123456789abcdef',
+            error: '',
+            attempts: 1,
+          },
+        ],
+      }),
+      (node) => <DialogProvider>{node}</DialogProvider>
+    )
+
+    expect(screen.getByText(/checkpoint ckpt-012…cdef/)).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'Restore' })).not.toBeNull()
   })
 })

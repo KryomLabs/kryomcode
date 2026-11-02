@@ -2,13 +2,19 @@
 // fallback, and the Monaco theme mapping. Runs in jsdom through
 // `npm run test:renderer`.
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
+  MONACO_FONT_FAMILY,
   applyTheme,
   getStoredTheme,
   initialTheme,
   monacoTheme,
   systemPrefersLight,
 } from './theme'
+
+const STYLES_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'styles')
 
 function mockMatchMedia(matches: boolean): void {
   Object.defineProperty(window, 'matchMedia', {
@@ -97,9 +103,9 @@ describe('applyTheme', () => {
     meta.setAttribute('name', 'theme-color')
     document.head.appendChild(meta)
     applyTheme('light')
-    expect(meta.getAttribute('content')).toBe('#f4f4f6')
+    expect(meta.getAttribute('content')).toBe('#f2f2f5')
     applyTheme('dark')
-    expect(meta.getAttribute('content')).toBe('#101114')
+    expect(meta.getAttribute('content')).toBe('#0e0f13')
   })
 
   it('applies cleanly without a theme-color meta tag', () => {
@@ -109,8 +115,35 @@ describe('applyTheme', () => {
 })
 
 describe('monacoTheme', () => {
-  it('maps light to vs and dark to vs-dark', () => {
-    expect(monacoTheme('light')).toBe('vs')
-    expect(monacoTheme('dark')).toBe('vs-dark')
+  it('maps light to kryom-light and dark to kryom-dark', () => {
+    expect(monacoTheme('light')).toBe('kryom-light')
+    expect(monacoTheme('dark')).toBe('kryom-dark')
+  })
+})
+
+describe('MONACO_FONT_FAMILY', () => {
+  it('prefers the registered JetBrains Mono Variable family with offline system fallbacks', () => {
+    const [first, ...rest] = MONACO_FONT_FAMILY.split(',')
+
+    // Must match the exact family registered by
+    // @fontsource-variable/jetbrains-mono (F1 regression: the plain
+    // 'JetBrains Mono' name has no @font-face and never loads).
+    expect(first.trim()).toBe("'JetBrains Mono Variable'")
+    expect(rest.join(',')).toContain('Cascadia Code')
+    expect(rest.join(',')).toContain('Consolas')
+    expect(rest.join(',')).toContain('monospace')
+  })
+
+  it('matches the --kc-font-mono token first family and fallbacks', () => {
+    const css = readFileSync(join(STYLES_DIR, 'tokens.css'), 'utf8')
+    const token = css.match(/--kc-font-mono\s*:\s*([^;]+);/)
+
+    expect(token).not.toBeNull()
+
+    const [tokenFirst, ...tokenRest] = (token?.[1] ?? '').split(',')
+    const [stackFirst, ...stackRest] = MONACO_FONT_FAMILY.split(',')
+
+    expect(stackFirst.trim()).toBe(tokenFirst.trim())
+    expect(stackRest.join(',')).toBe(tokenRest.join(','))
   })
 })
