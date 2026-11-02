@@ -221,21 +221,17 @@ cycle (2 attempts, 10-minute budget) with per-attempt approval.
 
 ## Demo video
 
-[![KryomCode demo — preview still](docs/images/01-main-workbench.png)](docs/demo/kryomcode-hackathon-demo.mp4)
+Watch the official KryomCode hackathon demo on YouTube:
 
-*Preview still from the workbench (gallery image 01). Click to open
-the video file.*
+[![KryomCode demo — preview still](docs/images/01-main-workbench.png)](https://youtube.com/watch?v=M_3XuU4IjLg&si=ACuwD24IQLAMK39-)
 
-- File: [`docs/demo/kryomcode-hackathon-demo.mp4`](docs/demo/kryomcode-hackathon-demo.mp4)
-  — H.264 1920×1088 @ 25 fps, AAC stereo audio, 2:16
-  (135.96 s), ~124 MB. Recorded 2026-11-02 following
+*Preview still from the workbench (gallery image 01). Click to watch
+the video on YouTube:
+https://youtube.com/watch?v=M_3XuU4IjLg&si=ACuwD24IQLAMK39-*
+
+- H.264 1920×1088 @ 25 fps, AAC stereo audio, 2:16 (135.96 s).
+  Recorded 2026-11-02 following
   [docs/DEMO_VIDEO_SCRIPT.md](docs/DEMO_VIDEO_SCRIPT.md).
-- Watching: open the link above (or the file after cloning). GitHub
-  may not inline-preview files this large — use Download/Raw to
-  watch locally.
-- Note for maintainers: at ~124 MB the file exceeds GitHub's 100 MB
-  single-file push limit, so publishing needs Git LFS, a smaller
-  encode, or external hosting (owner decision, not done here).
 
 ## Screenshots gallery
 
