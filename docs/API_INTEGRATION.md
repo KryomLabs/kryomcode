@@ -75,8 +75,8 @@ To add a provider, implement `chat`, assert it with
 
 ## Verification status
 
-Both models are covered by mocked provider tests only. No live Meta API
-call has been made from this repository. Before claiming the
-integration works, run one real-key request per model and confirm a
-non-empty answer. Record the result in
-[backend-limitations.md](backend-limitations.md).
+Mocked provider tests cover both models. Live status: re-verified on the
+current tree on 2026-11-02 (one exact-marker request per model, both passed;
+see [META_LIVE_VERIFICATION.md](META_LIVE_VERIFICATION.md)). The earlier canonical
+record is the 2026-10-28 smoke in [backend-limitations.md](backend-limitations.md).
+Full VERIFIED LIVE (agent-plan and research-synthesis flows) is still pending.

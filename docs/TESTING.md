@@ -15,6 +15,23 @@ npm run test:renderer     # renderer DOM suite (vitest + Testing Library; run np
 colocated test, append the new path to that script; `npm run
 check:test-manifest` (a CI gate) fails when a test file is missing.
 
+## Current-tree verification (2026-11-02, owner Windows machine)
+
+Recorded in the Phase 2A/2B/2C/3 reports (this section summarizes; those
+files hold the per-gate evidence):
+
+- `npm test`: 83 files, 782 tests — 777 pass, 0 fail, 5 pre-existing
+  environment skips (Phase 2A; backend sources unchanged since).
+- `npm run test:renderer`: 32 files, 238 tests, all pass, including two
+  regression tests added for fixed flaky files (Phase 2B/3).
+- `npx tsc -b`, `npm run build`: green on the current tree (Phase 3).
+- `check:syntax`, `check:test-manifest`, `check:workbench`, `pack`,
+  `check:release` (4234 asar entries), `dist`, dependency audit: green
+  (Phase 2A; only renderer sources and docs changed since).
+- GUI: packaged launch + clean quit pixel-verified; click-through smoke
+  pending a human pass (Phase 2C).
+- Meta live L1/L2 passed on this tree (Phase 2C); L3-L5 not run.
+
 ## Last verified
 
 2026-10-30, owner Windows machine (Node v24.14.1; CI pins

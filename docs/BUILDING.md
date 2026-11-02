@@ -43,12 +43,12 @@ npm run dist:preview     # Windows installer with baked preview channel
   but show the OS's standard unknown-publisher warnings.
   Signing is an explicit owner prerequisite — see
   [RELEASING.md](RELEASING.md). Nothing here fakes it.
-- **No app icons.** No icon assets exist in the tree yet,
-  so builds use Electron's default icon. Branded
-  `build/icon.ico` / `icon.icns` / Linux icon set are a
-  documented owner action in RELEASING.md (config lines
-  are intentionally absent until the files exist, so CI
-  cannot break on a dangling path).
+- **App icons.** Branded assets exist at `assets/branding/`
+  (`kryomcode-icon.ico`, `kryomcode-icon.icns`
+  `kryomcode-logo-512.png`, `kryomcode-logo.png`) and are wired
+  into the electron-builder `win`/`mac`/`linux` config in
+  `package.json` (verified 2026-11-02; this section previously
+  stated no assets existed).
 - **No update publishing.** `electron/updater` is not
   bundled; the in-app updater stages verified downloads
   for manual install. Publishing a feed URL is an owner

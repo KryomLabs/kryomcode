@@ -432,6 +432,22 @@ working tree, which has not been committed yet.
 - API key confined to the main process; scrubbed from child
   environments and logs.
 
+### Fixed
+
+- Agent approval note no longer wiped by a late-flushing mount
+  effect: the reset now runs during render on approval-id change
+  only (2026-11-02; `AgentWorkspace.tsx`).
+- Agent Timeline/Checks views no longer share a duplicate React
+  key, which intermittently duplicated or dropped rows
+  (2026-11-02; `AgentWorkspace.tsx`).
+- AI chat Escape listener now attaches pre-paint
+  (`useLayoutEffect`), closing the gap where an early Escape
+  missed the in-flight request (2026-11-02; `AiChat.tsx`).
+- Screenshot gallery filenames finalized (17 renames, byte
+  identical) so all 8 README references resolve (2026-11-02).
+- Live Meta verification re-run on the current tree: one
+  exact-marker request per model, both passed (2026-11-02).
+
 ## 2026-10-27 — Foundation (committed history)
 
 - `e324f7a` Initialize kryomcode workspace.

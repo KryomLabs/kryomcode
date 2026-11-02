@@ -43,7 +43,7 @@ aspirations.
 - The renderer reaches the main process only through the
   `window.kryom` bridge. No Node APIs, no `require`, no raw IPC.
 - New windows are denied (`setWindowOpenHandler`) and navigation is
-  limited to the dev server origin and `file:` URLs.
+  restricted to the exact dev-server origin in development and to the `kryom://app/index.html` entry document in packaged builds; `file:` URLs are denied and subframe navigation is denied (`electron/main.cjs` navigation guards, `electron/security/renderer-urls.cjs`, `electron/security/protocol-handler.cjs`).
 
 ## IPC authorization
 

@@ -30,13 +30,15 @@ src/electron.d.ts ◄───┴── types ─────────┘    
 only), registers all IPC handlers, creates the 1440x900 window, and
 cleans up terminal and Git child processes on `before-quit`.
 `loadApp` loads the Vite dev server when not packaged and falls back to
-`dist/index.html`; packaged builds always load `dist/index.html`.
-Navigation outside the dev server and `file:` URLs is denied, and new
-windows are refused.
+the packaged entry; packaged builds always load `kryom://app/index.html`
+served from `dist/` by the private protocol handler. Navigation outside
+the exact dev-server origin (development) or the packaged entry document
+(production) is denied — `file:` URLs and subframe navigations included —
+and new windows are refused.
 
 ## IPC contract
 
-Thirteen domain modules under `electron/ipc/` (plus registration).
+Fifteen domain modules under `electron/ipc/` (plus registration).
 Every handler runs `isTrustedSender(event)` (sender must be the app's
 own window, see `electron/security/trusted-sender.cjs`) and then
 validates arguments with `electron/security/validate-input.cjs`

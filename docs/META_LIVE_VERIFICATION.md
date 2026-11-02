@@ -192,8 +192,8 @@ Status unchanged: CODE-VERIFIED ONLY.
 
 | # | Case | Expected | Result |
 |---|---|---|---|
-| L1 | Minimal chat, `muse-spark-1.3` | Non-empty answer, model echo | NOT RUN — no command execution; no credential used |
-| L2 | Minimal chat, `muse-wonder-1.0` | Non-empty answer, model echo | NOT RUN — same blocker |
+| L1 | Minimal chat, `muse-spark-1.3` | Non-empty answer, model echo | PASS 2026-11-02T09:08:32Z: 2915 ms, model echo `muse-spark-1.3`, 12-char marker reply, key never printed |
+| L2 | Minimal chat, `muse-wonder-1.0` | Non-empty answer, model echo | PASS 2026-11-02T09:08:39Z: 7131 ms, model echo `muse-wonder-1.0`, 12-char marker reply, key never printed |
 | L3 | Agent plan (existing workflow) | Valid, previewable JSON plan | NOT RUN — same blocker |
 | L4 | Research run with LLM synthesis | Cited brief, `via: 'llm (...)'` | NOT RUN — same blocker |
 | L5 | Cancel/timeout/error paths live | Cancelled/timeout/auth wording | NOT RUN — code-traced only |
@@ -235,3 +235,29 @@ chat, or docs):
 4. Record the date, per-model latency, success/failure, and any error
    text (redacted) in the matrix above and flip the status line to
    VERIFIED LIVE only if L1–L4 succeed with observed responses.
+
+## Phase G addendum (2026-11-01, docs-only, no live run)
+
+- The doc conflict noted above (backend-limitations vs API_INTEGRATION)
+  was resolved on the docs side only: `docs/API_INTEGRATION.md`
+  §Verification status now names `docs/backend-limitations.md`
+  (2026-10-28 smoke) as the canonical record and states it has NOT
+  been re-verified on the current working tree.
+- No new live result was recorded: shell execution remains unavailable
+  (`windows_elevated setup_required`), so L1–L5 are still NOT RUN.
+  Status stays CODE-VERIFIED ONLY.
+
+## Phase 2C addendum (2026-11-02, live L1/L2 PASS)
+
+- Shell execution works in this phase (escalated one-shot approval),
+  so the doc's exact L1/L2 one-liner ran against the configured
+  provider workflow with `MODEL_API_KEY` resolved from the environment
+  (presence-only check; key never printed, answer text never printed —
+  only model echo, latency, reply length, and a marker boolean).
+- L1 `muse-spark-1.3`: PASS at 2026-11-02T09:08:32Z (2915 ms).
+  L2 `muse-wonder-1.0`: PASS at 2026-11-02T09:08:39Z (7131 ms).
+  Full per-model evidence lives in `docs/PHASE_2C_OWNER_VERIFICATION_REPORT.md`.
+- L3/L4/L5 remain NOT RUN (in-app agent/research/cancel flows need
+  GUI interaction, which is blocked this phase). Per the rule in
+  "Exact next action", the status line stays CODE-VERIFIED ONLY
+  until L1–L4 all succeed with observed responses.

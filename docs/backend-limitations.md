@@ -10,6 +10,10 @@ are verified statements, not guesses.
   answered in ~4.1 s and muse-wonder-1.0 in ~2.5 s. Both returned the
   exact marker with the expected model echo. No retries were needed.
   Responses are not persisted to chat history by the smoke path.
+- Update 2026-11-02: re-verified on the current tree (one exact-marker
+  request per model, both passed: muse-spark-1.3 ~2.9 s, muse-wonder-1.0
+  ~7.1 s); see docs/META_LIVE_VERIFICATION.md. The 2026-10-28 record
+  above stands as the earlier baseline.
 - Electron was not launched live in this headless session. `npm run build`
   (tsc + Vite) passes; dev/prod startup needs a manual run.
 - Level 1 gate (2026-10-29): Monaco is bundled locally

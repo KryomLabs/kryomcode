@@ -20,9 +20,11 @@ that do not exist in this repository.
 
 ## Pre-release checklist
 
-1. `main` is green: `npm test`, `check:syntax`,
-   `check:test-manifest`, `npx tsc -b`, `npm run build`,
-   `npm run pack`, `npm run check:release`.
+1. `main` is green: `npm test`, `npm run test:renderer`,
+   `check:syntax`, `check:test-manifest`, `check:workbench`,
+   `npx tsc -b`, `npm run build`, `npm run pack`,
+   `npm run check:release`. (Renderer suite + workbench gate
+   added 2026-11-02; both exist in `package.json`.)
 2. `docs/CHANGELOG.md` Unreleased section is complete
    and accurate; move it under the new version + date.
 3. Bump `package.json` version (no `v` prefix in the
@@ -63,7 +65,7 @@ that do not exist in this repository.
 | ---- | ------ | -------- |
 | Windows Authenticode cert | Not configured | Trusted Windows installs |
 | Apple Developer ID + notarization | Not configured | macOS Gatekeeper installs |
-| App icon set (`build/icon.ico`, `icon.icns`, Linux icons) | No assets in tree | Branded installers |
+| App icon set (`assets/branding/` ico + icns + logos) | Present and wired (verified 2026-11-02) | Branded installers |
 | Update feed hosting + URL | Not configured | In-app update checks |
 | Security contact email | Not configured | Faster vulnerability intake |
 | macOS/Linux test hardware or runners | Not available | Verified cross-platform releases |

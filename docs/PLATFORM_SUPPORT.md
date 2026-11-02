@@ -13,7 +13,8 @@ ran it there. Only Windows is validated today.
 | Packaged runtime testing | Partial (unpacked dir) | Pending | Pending |
 | Installer packaging | nsis configured | dmg configured (untested) | AppImage + deb configured (untested) |
 | Code signing | Blocked (no cert) | Blocked (no cert) | N/A (checksums) |
-| CI build | Windows runner | Pending (no runner) | Pending (no runner) |
+| CI build | Configured (3-OS matrix in `ci.yml`) | Configured (3-OS matrix in `ci.yml`) | Configured (3-OS matrix in `ci.yml`) |
+| CI runs recorded | None recorded in-repo | None recorded in-repo | None recorded in-repo |
 
 ## What the code does per platform
 
