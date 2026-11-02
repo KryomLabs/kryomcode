@@ -12,8 +12,10 @@ import { kryom, errorMessage } from '../api/kryom'
 import { useProviderModels } from '../hooks/useProviderModels'
 import { useAgentRun, isRunActive } from '../hooks/useAgentRun'
 import { modelDisplayName } from '../utils/models'
-import { diffLines } from '../utils/diff'
 import { saveAgentRunUI, loadAgentRunUI } from '../utils/session-restore'
+import { DiffView } from './agent/DiffView'
+import { useBoundedList } from './agent/BoundedList'
+import { CheckpointRestore } from './agent/CheckpointRestore'
 
 export interface AgentWorkspaceProps {
   workspaceRoot: string | null
@@ -113,6 +115,16 @@ function eventTime(iso: string): string {
   })
 }
 
+function eventDateTime(iso: string): string {
+  const date = new Date(iso)
+
+  if (Number.isNaN(date.getTime())) {
+    return 'unknown time'
+  }
+
+  return date.toLocaleString()
+}
+
 function shortId(id: string): string {
   return id.length > 14 ? `${id.slice(0, 8)}…${id.slice(-4)}` : id
 }
@@ -146,27 +158,6 @@ function StatusPill({ run }: { run: KryomAgentRun | null }) {
       {STATE_LABELS[run.state] ?? run.state}
       {run.interrupted ? ' (interrupted)' : ''}
     </span>
-  )
-}
-
-function InlineDiff({ oldText, newText }: { oldText: string; newText: string }) {
-  const { lines, truncated } = diffLines(oldText, newText)
-  const shown = lines.slice(0, 300)
-
-  return (
-    <div className="diff-view">
-      {shown.map((line, index) => (
-        <div key={index} className={`diff-line diff-${line.type}`}>
-          <span className="diff-gutter">
-            {line.type === 'add' ? '+' : line.type === 'del' ? '−' : ' '}
-          </span>
-          <span className="diff-text">{line.text || ' '}</span>
-        </div>
-      ))}
-      {(truncated || lines.length > shown.length) && (
-        <div className="muted padded">Diff truncated for display.</div>
-      )}
-    </div>
   )
 }
 
@@ -391,10 +382,15 @@ interface ApprovalProps {
 function ApprovalCard(props: ApprovalProps) {
   const approval = props.run.pendingApproval
   const [reason, setReason] = useState('')
+  // Reset the note when a new approval arrives. This runs during render
+  // (not in an effect) so a late-flushing mount effect can never wipe a
+  // note the user already typed for the current approval.
+  const [lastApprovalId, setLastApprovalId] = useState(approval?.id)
 
-  useEffect(() => {
+  if (approval?.id !== lastApprovalId) {
+    setLastApprovalId(approval?.id)
     setReason('')
-  }, [approval?.id])
+  }
 
   if (props.run.state !== 'waiting_for_approval' || !approval) {
     return null
@@ -545,7 +541,12 @@ function ApprovalCard(props: ApprovalProps) {
   )
 }
 
-function PlanView({ run }: { run: KryomAgentRun }) {
+function PlanView(props: {
+  run: KryomAgentRun
+  onFilesChanged: (paths: string[]) => void
+  onStatus: (status: string) => void
+}) {
+  const run = props.run
   const decomposition = run.decomposition
 
   if (!decomposition) {
@@ -605,6 +606,14 @@ function PlanView({ run }: { run: KryomAgentRun }) {
                 <div className="muted small">{live.verificationNote}</div>
               )}
               {live?.error && <div className="error-text">{live.error}</div>}
+              {live?.checkpointId && (
+                <CheckpointRestore
+                  checkpointId={live.checkpointId}
+                  contextLabel={subtask.title}
+                  onFilesChanged={props.onFilesChanged}
+                  onStatus={props.onStatus}
+                />
+              )}
             </li>
           )
         })}
@@ -639,6 +648,12 @@ function TimelineView({ run }: { run: KryomAgentRun }) {
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const [follow, setFollow] = useState(true)
   const lastSeq = run.events.length > 0 ? run.events[run.events.length - 1].seq : 0
+  // Follow mode keeps the live tail visible; unfollowed long runs
+  // page through a bounded window instead.
+  const windowed = useBoundedList(run.events, {
+    threshold: 50,
+    expandAll: follow,
+  })
 
   useEffect(() => {
     if (follow && bottomRef.current) {
@@ -669,7 +684,7 @@ function TimelineView({ run }: { run: KryomAgentRun }) {
         </label>
       </h3>
       <div className="agent-run-timeline" role="log" aria-label="Run timeline">
-        {run.events.map((event) => (
+        {windowed.visible.map((event) => (
           <div key={event.seq} className="agent-run-event">
             <span className="agent-run-event-icon" aria-hidden="true">
               {eventIcon(event.kind)}
@@ -684,6 +699,7 @@ function TimelineView({ run }: { run: KryomAgentRun }) {
         ))}
         <div ref={bottomRef} />
       </div>
+      {windowed.footer}
     </div>
   )
 }
@@ -839,10 +855,10 @@ function ChangesView(props: ChangesProps) {
                         <div className="muted small">
                           Previous content unavailable; showing new content.
                         </div>
-                        <InlineDiff oldText="" newText={diff.newText} />
+                        <DiffView oldText="" newText={diff.newText} />
                       </div>
                     ) : (
-                      <InlineDiff oldText={diff.oldText} newText={diff.newText} />
+                      <DiffView oldText={diff.oldText} newText={diff.newText} />
                     )}
                   </div>
                 )}
@@ -865,6 +881,11 @@ function ChangesView(props: ChangesProps) {
 
 function ChecksView({ run }: { run: KryomAgentRun }) {
   const [open, setOpen] = useState<number | null>(null)
+  // Window indexes, not checks, so the expanded row survives paging.
+  const windowed = useBoundedList(
+    run.checks.map((_, index) => index),
+    { threshold: 30 }
+  )
 
   if (run.checks.length === 0) {
     const pending = run.subtasks.filter(
@@ -895,7 +916,8 @@ function ChecksView({ run }: { run: KryomAgentRun }) {
     <div className="agent-run-section">
       <h3>Verification</h3>
       <ul className="agent-run-check-list">
-        {run.checks.map((check, index) => {
+        {windowed.visible.map((index) => {
+          const check = run.checks[index]
           const expanded = open === index
 
           return (
@@ -940,6 +962,7 @@ function ChecksView({ run }: { run: KryomAgentRun }) {
           )
         })}
       </ul>
+      {windowed.footer}
     </div>
   )
 }
@@ -1190,6 +1213,7 @@ export function AgentWorkspace(props: AgentWorkspaceProps) {
               className="text-input"
               value={model}
               onChange={(event) => setModel(event.target.value)}
+              title="Model for the next task. The backend fixes the model at run start, so an active run keeps its model."
             >
               {modelOptions.map((entry) => (
                 <option key={entry.modelId} value={entry.modelId}>
@@ -1198,6 +1222,11 @@ export function AgentWorkspace(props: AgentWorkspaceProps) {
               ))}
             </select>
           </label>
+          {active && run && model !== run.model && (
+            <span className="muted small" role="status">
+              Active run keeps {modelDisplayName(run.model)}
+            </span>
+          )}
           {runs.length > 0 && (
             <label className="agent-run-model">
               <span className="muted small">History</span>
@@ -1334,10 +1363,14 @@ export function AgentWorkspace(props: AgentWorkspaceProps) {
               <div className="agent-run-section">
                 <h3>Task</h3>
                 <div className="agent-run-task-text">{run.task}</div>
-                <div className="muted small">
+                <div className="muted small" title={`Run ${run.id}`}>
                   {shortId(run.id)} · {run.model} · research {run.researchMode}
                   {run.researchSessionId &&
                     ` · research ${shortId(run.researchSessionId)}`}
+                </div>
+                <div className="muted small">
+                  Started {eventDateTime(run.createdAt)} · Updated{' '}
+                  {eventDateTime(run.updatedAt)}
                 </div>
               </div>
             )
@@ -1357,7 +1390,13 @@ export function AgentWorkspace(props: AgentWorkspaceProps) {
             />
           )}
 
-          {run && <PlanView run={run} />}
+          {run && (
+            <PlanView
+              run={run}
+              onFilesChanged={props.onFilesChanged}
+              onStatus={props.onStatus}
+            />
+          )}
           {run && run.summary && <ResultView run={run} />}
         </div>
 
@@ -1372,7 +1411,7 @@ export function AgentWorkspace(props: AgentWorkspaceProps) {
               </div>
             </div>
           )}
-          {run && <TimelineView run={run} />}
+          {run && <TimelineView key={`timeline-${run.id}`} run={run} />}
           {run && (
             <ChangesView
               run={run}
@@ -1381,7 +1420,7 @@ export function AgentWorkspace(props: AgentWorkspaceProps) {
               onOpenFile={props.onOpenFile}
             />
           )}
-          {run && <ChecksView run={run} />}
+          {run && <ChecksView key={`checks-${run.id}`} run={run} />}
         </div>
       </div>
     </section>

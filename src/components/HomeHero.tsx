@@ -1,87 +1,96 @@
-// Home hero: the centered AI search entry. Collects the first
-// prompt per mode and hands it up; WelcomePage routes it to the
-// existing chat/research backends. Pure presentational component —
-// no backend calls here.
-import { useState } from 'react'
-import type { DiscoveryMode } from './WelcomePage'
+// Welcome hero (Phase B): one headline, the unified composer, and
+// a compact context toolbar. No logo badge, no brand text, no mode
+// buttons — the mode selector lives in the parent, pinned in one
+// position across hero and conversation states.
+import { Composer, type ComposerMode, type ComposerModelOption } from './Composer'
 
 export interface HomeHeroProps {
-  mode: DiscoveryMode
-  onModeChange: (mode: DiscoveryMode) => void
-  onSubmit: (text: string) => void
+  mode: ComposerMode
+  draft: string
+  onDraftChange: (value: string) => void
+  placeholder: string
+  maxLength: number
+  model: string
+  modelOptions: ComposerModelOption[]
+  onModelChange: (model: string) => void
+  approvalRequired: boolean
+  onToggleApproval: () => void
+  attachments: KryomContextFile[]
+  onAttach: () => void
+  onRemoveAttachment: (path: string) => void
+  attaching: boolean
+  attachError: string
+  onSubmit: () => void
+  projectName: string | null
+  onOpenProject: () => void
+  activeFileName: string
+  onOpenActiveFile: (() => void) | null
+  onNewConversation: () => void
 }
 
 export function HomeHero(props: HomeHeroProps) {
-  const [value, setValue] = useState('')
-  const ready = value.trim() !== ''
-
-  function submit(event: React.FormEvent) {
-    event.preventDefault()
-    const text = value.trim()
-
-    if (text === '') {
-      return
-    }
-
-    // The field is intentionally NOT cleared: on success the parent
-    // navigates away (unmounting the hero), and on refusal the typed
-    // text stays so the user never retypes.
-    props.onSubmit(text)
-  }
-
   return (
-    <div className="hero">
-      <div className="hero-mark" aria-hidden="true">
-        K
-      </div>
-      <p className="hero-brand">KryomCode</p>
+    <div className="hero hero-b">
       <h1 className="hero-title">What should we build &amp; discover?</h1>
-      <div className="segmented hero-modes" role="group" aria-label="Home mode">
+
+      <div className="hero-composer">
+        <Composer
+          mode={props.mode}
+          value={props.draft}
+          onChange={props.onDraftChange}
+          placeholder={props.placeholder}
+          maxLength={props.maxLength}
+          model={props.model}
+          modelOptions={props.modelOptions}
+          onModelChange={props.onModelChange}
+          approvalRequired={props.approvalRequired}
+          onToggleApproval={props.onToggleApproval}
+          attachments={props.attachments}
+          onAttach={props.onAttach}
+          onRemoveAttachment={props.onRemoveAttachment}
+          attaching={props.attaching}
+          attachError={props.attachError}
+          running={false}
+          onSubmit={props.onSubmit}
+          onStop={() => undefined}
+        />
+      </div>
+
+      <div className="hero-toolbar" role="toolbar" aria-label="Context">
         <button
           type="button"
-          className={props.mode === 'chat' ? 'segment active' : 'segment'}
-          aria-pressed={props.mode === 'chat'}
-          onClick={() => props.onModeChange('chat')}
+          className="toolbar-btn"
+          onClick={props.onOpenProject}
+          title={
+            props.projectName
+              ? `Current project: ${props.projectName} — click to switch`
+              : 'Open a project folder'
+          }
         >
-          Chat
+          {props.projectName ? `Project: ${props.projectName}` : 'Choose Project'}
         </button>
+
+        {props.activeFileName !== '' && (
+          <button
+            type="button"
+            className="toolbar-btn"
+            onClick={props.onOpenActiveFile ?? undefined}
+            disabled={props.onOpenActiveFile === null}
+            title={`Active file: ${props.activeFileName}`}
+          >
+            File: {props.activeFileName}
+          </button>
+        )}
+
         <button
           type="button"
-          className={props.mode === 'research' ? 'segment active' : 'segment'}
-          aria-pressed={props.mode === 'research'}
-          onClick={() => props.onModeChange('research')}
+          className="toolbar-btn"
+          onClick={props.onNewConversation}
+          title="Clear this mode and start a new conversation"
         >
-          Research
+          New conversation
         </button>
       </div>
-      <p className="hero-hint">
-        {props.mode === 'chat'
-          ? 'Conversational answers with your project context.'
-          : 'Structured investigation with cited sources.'}
-      </p>
-      <form className="hero-form" onSubmit={submit}>
-        <input
-          type="text"
-          autoFocus
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          placeholder={
-            props.mode === 'chat'
-              ? 'Ask about your code…'
-              : 'What should we investigate?'
-          }
-          aria-label={props.mode === 'chat' ? 'Chat prompt' : 'Research topic'}
-        />
-        <button
-          type="submit"
-          className="primary-button hero-send"
-          disabled={!ready}
-          aria-label="Send"
-        >
-          Send
-        </button>
-      </form>
-      <p className="hero-keys">Enter to send</p>
     </div>
   )
 }

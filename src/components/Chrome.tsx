@@ -1,40 +1,113 @@
 import { baseName } from '../utils/paths'
 import { modelDisplayName } from '../utils/models'
 import logoUrl from '../../assets/branding/kryomcode-logo.png'
-import type { DiscoveryMode } from './WelcomePage'
 
 export interface TitleBarProps {
   workspaceRoot: string | null
   activeLabel: string | null
   dirty: boolean
-  autoSave: boolean
   sidebarVisible: boolean
   bottomOpen: boolean
+  asideOpen: boolean
+  canGoBack: boolean
+  canGoForward: boolean
   onToggleSidebar: () => void
   onToggleBottom: () => void
-  discoveryMode: DiscoveryMode
-  onDiscoveryModeChange: (mode: DiscoveryMode) => void
+  onToggleAside: () => void
+  onOpenPalette: () => void
+  onGoBack: () => void
+  onGoForward: () => void
+}
+
+function LayoutIcon({ kind }: { kind: 'left' | 'right' | 'bottom' }) {
+  const bar =
+    kind === 'left'
+      ? 'M4 5h4v14H4z'
+      : kind === 'right'
+        ? 'M16 5h4v14h-4z'
+        : 'M4 15h16v4H4z'
+
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect x="4" y="5" width="16" height="14" rx="1.5" />
+      <path d={bar} fill="currentColor" stroke="none" opacity="0.55" />
+    </svg>
+  )
+}
+
+function NavIcon({ forward }: { forward: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {forward ? (
+        <path d="M9 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
+      ) : (
+        <path d="M15 5l-7 7 7 7" strokeLinecap="round" strokeLinejoin="round" />
+      )}
+    </svg>
+  )
 }
 
 // Compact IDE title bar under the native menu (File … Help stay
 // native for accessibility and window behavior; minimize/maximize/
-// close stay on the native OS frame). Shows the product logo, the
-// current workspace, the active editor, and layout controls.
+// close stay on the native OS frame). Shows the product icon once —
+// the OS window title carries the wordmark — plus workbench file
+// navigation, the current workspace, the active editor, a
+// command-center entry, and layout controls. Auto-save state lives
+// in the status bar only.
 export function TitleBar(props: TitleBarProps) {
   const project = props.workspaceRoot ? baseName(props.workspaceRoot) : null
 
   return (
     <header className="titlebar">
-      <span className="title-brand" aria-label="KryomCode">
+      <span className="title-brand" title="KryomCode">
         <img
           className="title-logo"
           src={logoUrl}
-          alt=""
-          aria-hidden="true"
+          alt="KryomCode"
           width={18}
           height={18}
         />
-        KryomCode
+      </span>
+
+      <span className="title-nav" role="group" aria-label="Navigate">
+        <button
+          type="button"
+          className="title-layout-btn"
+          onClick={props.onGoBack}
+          disabled={!props.canGoBack}
+          title="Go back (Alt+Left)"
+          aria-label="Go back"
+        >
+          <NavIcon forward={false} />
+        </button>
+        <button
+          type="button"
+          className="title-layout-btn"
+          onClick={props.onGoForward}
+          disabled={!props.canGoForward}
+          title="Go forward (Alt+Right)"
+          aria-label="Go forward"
+        >
+          <NavIcon forward={true} />
+        </button>
       </span>
 
       <span className="title-crumb muted" title={props.workspaceRoot ?? ''}>
@@ -42,43 +115,28 @@ export function TitleBar(props: TitleBarProps) {
         {props.activeLabel ? ` › ${props.activeLabel}${props.dirty ? ' •' : ''}` : ''}
       </span>
 
-      <span
-        className="title-modes"
-        role="group"
-        aria-label="Discovery mode"
-        title="Chat or Research in the central workspace"
+      <button
+        type="button"
+        className="title-palette-btn"
+        onClick={props.onOpenPalette}
+        title="Command palette (Ctrl+Shift+P) · Go to file (Ctrl+P)"
+        aria-label="Open command palette"
       >
-        <button
-          type="button"
-          className={
-            props.discoveryMode === 'chat'
-              ? 'title-mode-btn active'
-              : 'title-mode-btn'
-          }
-          aria-pressed={props.discoveryMode === 'chat'}
-          onClick={() => props.onDiscoveryModeChange('chat')}
+        <svg
+          viewBox="0 0 24 24"
+          width="13"
+          height="13"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          aria-hidden="true"
+          focusable="false"
         >
-          Chat
-        </button>
-        <button
-          type="button"
-          className={
-            props.discoveryMode === 'research'
-              ? 'title-mode-btn active'
-              : 'title-mode-btn'
-          }
-          aria-pressed={props.discoveryMode === 'research'}
-          onClick={() => props.onDiscoveryModeChange('research')}
-        >
-          Research
-        </button>
-      </span>
-
-      {props.autoSave && (
-        <span className="chip" title="Auto Save is on (File menu to change)">
-          Auto-save
-        </span>
-      )}
+          <circle cx="11" cy="11" r="6" />
+          <path d="M20 20l-4.2-4.2" strokeLinecap="round" />
+        </svg>
+        <span>Search files, commands…</span>
+      </button>
 
       <span className="spacer" />
 
@@ -91,7 +149,17 @@ export function TitleBar(props: TitleBarProps) {
           aria-label={props.sidebarVisible ? 'Hide sidebar' : 'Show sidebar'}
           aria-pressed={props.sidebarVisible}
         >
-          ◧
+          <LayoutIcon kind="left" />
+        </button>
+        <button
+          type="button"
+          className="title-layout-btn"
+          onClick={props.onToggleAside}
+          title={props.asideOpen ? 'Hide auxiliary panel' : 'Show auxiliary panel'}
+          aria-label={props.asideOpen ? 'Hide auxiliary panel' : 'Show auxiliary panel'}
+          aria-pressed={props.asideOpen}
+        >
+          <LayoutIcon kind="right" />
         </button>
         <button
           type="button"
@@ -101,7 +169,7 @@ export function TitleBar(props: TitleBarProps) {
           aria-label={props.bottomOpen ? 'Hide bottom panel' : 'Show bottom panel'}
           aria-pressed={props.bottomOpen}
         >
-          ◫
+          <LayoutIcon kind="bottom" />
         </button>
       </span>
     </header>
@@ -208,7 +276,7 @@ export function StatusBar(props: StatusBarProps) {
         )}
 
         {props.line !== null && props.column !== null && (
-          <span className="status-seg" title="Cursor position">
+          <span className="status-seg status-pos" title="Cursor position">
             Ln {props.line}, Col {props.column}
           </span>
         )}

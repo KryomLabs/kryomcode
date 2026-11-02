@@ -62,6 +62,11 @@ import { IntelligenceHub } from '../components/IntelligenceHub'
 import { PlatformHub } from '../components/PlatformHub'
 import { AgentWorkspace } from '../components/AgentWorkspace'
 import { TasksPanel } from '../components/TasksPanel'
+import { DebugConsolePanel } from '../components/DebugConsolePanel'
+import {
+  parseBottomTab,
+  type BottomTab,
+} from '../utils/bottom-tabs'
 import { TemplatePickerDialog } from '../components/TemplatePickerDialog'
 import type { MetaInitialPrompt } from '../components/MetaAIWorkspace'
 import {
@@ -75,15 +80,27 @@ import { WelcomePage, type DiscoveryMode } from '../components/WelcomePage'
 import { ConnectionsPanel } from '../components/ConnectionsPanel'
 import { MemoryPanel } from '../components/MemoryPanel'
 import { ExtensionsPanel } from '../components/ExtensionsPanel'
-import { ProfilePanel } from '../components/ProfilePanel'
 import { OutputPanel } from '../components/OutputPanel'
 import { AboutDialog } from '../components/AboutDialog'
 import { QuickOpen } from '../components/QuickOpen'
+import { CommandPalette, type PaletteCommand } from '../components/CommandPalette'
+import { AsidePanel } from '../components/AsidePanel'
+import { AiWorkspaceHub } from '../components/AiWorkspaceHub'
+import { HistoryPanel, type HistoryFilter } from '../components/HistoryPanel'
+import {
+  buildThreadRefs,
+  filterThreadsForRoot,
+  loadThreadIndex,
+  saveThreadIndex,
+  THREAD_INDEX_VERSION,
+  type ThreadMode,
+  type ThreadRef,
+} from '../state/thread-index'
+import { RunDebugSidebar } from '../components/RunDebugSidebar'
 import { ShortcutsDialog } from '../components/ShortcutsDialog'
 import { DiagnosticsDialog } from '../components/DiagnosticsDialog'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 
-type BottomTab = 'terminal' | 'problems' | 'git' | 'output' | 'tasks'
 type CenterView = 'editor' | 'home' | 'intel' | 'platform' | 'agent'
 type StageMode = 'intel' | 'platform' | 'agent'
 
@@ -105,9 +122,20 @@ const FALLBACK_SETTINGS: KryomSettings = {
 const PANEL_LIMITS = {
   left: { min: 180, max: 420, fallback: 260 },
   bottom: { min: 120, max: 600, fallback: 264 },
+  aside: { min: 300, max: 520, fallback: 360 },
 } as const
 
 const FONT_LIMITS = { min: 10, max: 24, fallback: 14 } as const
+
+// Maximized bottom panel keeps the ~420px editor floor: titlebar
+// (40) + status bar (24) + editor floor (420) + resize/tab slack.
+const MAXIMIZED_BOTTOM_CHROME = 492
+
+// D2 terminal renderer settings (blueprint T1: font 11–16 live).
+// localStorage-backed like the editor font size — no settings
+// migration (see Phase A report §6.2).
+const TERMINAL_FONT_LIMITS = { min: 11, max: 16, fallback: 13 } as const
+type TerminalRenderer = 'xterm' | 'pre'
 
 function clampLeftWidth(value: number): number {
   const max = Math.max(
@@ -127,6 +155,15 @@ function clampBottomHeight(value: number): number {
   return Math.min(max, Math.max(PANEL_LIMITS.bottom.min, Math.round(value)))
 }
 
+function clampAsideWidth(value: number): number {
+  const max = Math.max(
+    PANEL_LIMITS.aside.min,
+    Math.min(PANEL_LIMITS.aside.max, window.innerWidth - 560)
+  )
+
+  return Math.min(max, Math.max(PANEL_LIMITS.aside.min, Math.round(value)))
+}
+
 function clampFontSize(value: number): number {
   return Math.min(
     FONT_LIMITS.max,
@@ -139,18 +176,12 @@ function readLocalActivity(): ActivityId {
 
   const raw = window.localStorage.getItem('kryom.activity')
 
-  // Only sidebar-backed views persist here. Panel/center/action
-  // destinations open the bottom panel, center view, or a Meta AI
-  // tab instead, so a stale stored value falls back to Explorer.
-  // Legacy 'connections'/'profile' ids map to their renamed homes.
-  if (raw === 'connections') {
-    return 'tools'
-  }
-
-  if (raw === 'profile') {
-    return 'account'
-  }
-
+  // Only sidebar-backed views persist here. Aside/panel/center/action
+  // destinations open the dock, bottom panel, center view, or run a
+  // command instead, so a stale stored value falls back to Explorer.
+  // Retired ids (connections/profile/tools/memory/account/...) all
+  // land on Explorer; nothing is lost (their views moved, see Phase
+  // A report).
   if (
     raw &&
     hasActivity(raw) &&
@@ -162,6 +193,22 @@ function readLocalActivity(): ActivityId {
   return 'explorer'
 }
 
+function readLocalAside(): ActivityId {
+  registerBuiltinActivities()
+
+  const raw = window.localStorage.getItem('kryom.asideActivity')
+
+  if (
+    raw &&
+    hasActivity(raw) &&
+    getActivity(raw)?.area === 'aside'
+  ) {
+    return raw
+  }
+
+  return 'ai-workspace'
+}
+
 function readLocalFontSize(): number {
   const raw = Number(window.localStorage.getItem('kryom.editorFontSize'))
 
@@ -170,6 +217,29 @@ function readLocalFontSize(): number {
   }
 
   return FONT_LIMITS.fallback
+}
+
+function clampTerminalFontSize(value: number): number {
+  return Math.min(
+    TERMINAL_FONT_LIMITS.max,
+    Math.max(TERMINAL_FONT_LIMITS.min, Math.round(value))
+  )
+}
+
+function readLocalTerminalFontSize(): number {
+  const raw = Number(window.localStorage.getItem('kryom.terminalFontSize'))
+
+  if (Number.isFinite(raw)) {
+    return clampTerminalFontSize(raw)
+  }
+
+  return TERMINAL_FONT_LIMITS.fallback
+}
+
+function readLocalTerminalRenderer(): TerminalRenderer {
+  const raw = window.localStorage.getItem('kryom.terminalRenderer')
+
+  return raw === 'pre' || raw === 'xterm' ? raw : 'xterm'
 }
 
 function AppShell() {
@@ -192,9 +262,23 @@ function AppShell() {
   const [bottomHeight, setBottomHeight] = useState(
     FALLBACK_SETTINGS.panelBottomHeight
   )
-  const panelsRef = useRef({
+  const [asideActivity, setAsideActivity] = useState<ActivityId>(() =>
+    readLocalAside()
+  )
+  const [asideOpen, setAsideOpen] = useState(
+    () => window.localStorage.getItem('kryom.asideOpen') !== '0'
+  )
+  const [asideWidth, setAsideWidth] = useState<number>(
+    PANEL_LIMITS.aside.fallback
+  )
+  const panelsRef = useRef<{
+    left: number
+    bottom: number
+    aside: number
+  }>({
     left: FALLBACK_SETTINGS.panelLeftWidth,
     bottom: FALLBACK_SETTINGS.panelBottomHeight,
+    aside: PANEL_LIMITS.aside.fallback,
   })
   const [summary, setSummary] = useState<KryomWorkspaceSummary | null>(null)
   const [status, setStatus] = useState('Ready')
@@ -211,6 +295,35 @@ function AppShell() {
   // requests never switch this — they open Meta AI Agent tabs.
   const [discoveryMode, setDiscoveryMode] =
     useState<DiscoveryMode>('chat')
+  // History deep-open targets, consumed once per nonce by WelcomePage.
+  const [chatSelect, setChatSelect] = useState<{
+    id: string
+    nonce: number
+  } | null>(null)
+  const [researchRestore, setResearchRestore] = useState<{
+    sessionId: string
+    nonce: number
+  } | null>(null)
+  const [homeNewRequest, setHomeNewRequest] = useState<{
+    mode: DiscoveryMode
+    nonce: number
+  } | null>(null)
+  // D1 unified thread refs (references only) + saved-index fallback.
+  const [threadRefs, setThreadRefs] = useState<ThreadRef[]>(() => {
+    try {
+      return loadThreadIndex(window.localStorage).index.refs
+    } catch {
+      return []
+    }
+  })
+  const [indexCorrupt, setIndexCorrupt] = useState(false)
+  const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('all')
+  const threadNonce = useRef(0)
+
+  function nextThreadNonce(): number {
+    threadNonce.current += 1
+    return threadNonce.current
+  }
   // Research brief attached to Discovery chat as cited context; the
   // chat keeps its own history, the brief only grounds answers.
   const [chatResearchId, setChatResearchId] = useState<string | null>(null)
@@ -246,6 +359,7 @@ function AppShell() {
   }>({ ok: null, label: null })
   const [aboutOpen, setAboutOpen] = useState(false)
   const [quickOpen, setQuickOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false)
   const [diagSummary, setDiagSummary] = useState<{
@@ -286,9 +400,32 @@ function AppShell() {
     reportStatus,
     settings.confirmAllCommands
   )
-  const [bottomTab, setBottomTab] = useState<BottomTab>('terminal')
+  // Active panel restores from localStorage (Phase D1); unknown or
+  // retired ids fall back to the terminal via parseBottomTab.
+  const [bottomTab, setBottomTab] = useState<BottomTab>(() =>
+    parseBottomTab(window.localStorage.getItem('kryom.bottomTab'))
+  )
   const [bottomOpen, setBottomOpen] = useState(
     () => window.localStorage.getItem('kryom.bottomOpen') !== '0'
+  )
+  // Maximized bottom panel (Phase D1): transient, never persisted —
+  // unmaximizing returns to the settings-persisted height.
+  const [bottomMaximized, setBottomMaximized] = useState(false)
+  const maximizedBottomHeight = Math.max(
+    PANEL_LIMITS.bottom.min,
+    window.innerHeight - MAXIMIZED_BOTTOM_CHROME
+  )
+  // Terminal focus requests (Phase D1): bumped by Terminal: Focus
+  // Terminal and by the Ctrl+` toggle when it opens the panel.
+  const terminalFocusNonce = useRef(0)
+  const [terminalFocus, setTerminalFocus] = useState<{
+    nonce: number
+  } | null>(null)
+  const [terminalFontSize, setTerminalFontSize] = useState(() =>
+    readLocalTerminalFontSize()
+  )
+  const [terminalRenderer, setTerminalRenderer] = useState<TerminalRenderer>(
+    () => readLocalTerminalRenderer()
   )
   const [saving, setSaving] = useState(false)
   const [opening, setOpening] = useState(false)
@@ -301,6 +438,18 @@ function AppShell() {
     index: -1,
   })
   const navigatingRef = useRef(false)
+  // Reactive mirror of the file-history position for the title-bar
+  // Back/Forward enabled states. The ref stays the source of truth.
+  const [navPosition, setNavPosition] = useState({ canBack: false, canForward: false })
+
+  function syncNavPosition() {
+    const history = historyRef.current
+
+    setNavPosition({
+      canBack: history.index > 0,
+      canForward: history.index < history.entries.length - 1,
+    })
+  }
 
   const activeGroup = getActiveGroup(workbench)
   const activeTab: WorkbenchTab | null = activeGroup.activeId
@@ -341,7 +490,8 @@ function AppShell() {
         const left = clampLeftWidth(loaded.panelLeftWidth)
         const bottom = clampBottomHeight(loaded.panelBottomHeight)
 
-        panelsRef.current = { left, bottom }
+        panelsRef.current.left = left
+        panelsRef.current.bottom = bottom
         setLeftWidth(left)
         setBottomHeight(bottom)
       })
@@ -385,6 +535,33 @@ function AppShell() {
   }, [bottomOpen])
 
   useEffect(() => {
+    window.localStorage.setItem('kryom.bottomTab', bottomTab)
+  }, [bottomTab])
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      'kryom.terminalFontSize',
+      String(terminalFontSize)
+    )
+  }, [terminalFontSize])
+
+  useEffect(() => {
+    window.localStorage.setItem('kryom.terminalRenderer', terminalRenderer)
+  }, [terminalRenderer])
+
+  useEffect(() => {
+    window.localStorage.setItem('kryom.asideActivity', asideActivity)
+  }, [asideActivity])
+
+  useEffect(() => {
+    window.localStorage.setItem('kryom.asideOpen', asideOpen ? '1' : '0')
+  }, [asideOpen])
+
+  useEffect(() => {
+    window.localStorage.setItem('kryom.asideWidth', String(asideWidth))
+  }, [asideWidth])
+
+  useEffect(() => {
     window.localStorage.setItem('kryom.editorFontSize', String(fontSize))
   }, [fontSize])
 
@@ -392,15 +569,31 @@ function AppShell() {
     applyTheme(theme)
   }, [theme])
 
+  // Restore the aside width once (localStorage; no settings
+  // migration in Phase A).
+  useEffect(() => {
+    const raw = Number(window.localStorage.getItem('kryom.asideWidth'))
+
+    if (Number.isFinite(raw)) {
+      const next = clampAsideWidth(raw)
+
+      panelsRef.current.aside = next
+      setAsideWidth(next)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Keep the layout valid when the Electron window itself is resized.
   useEffect(() => {
     const onWindowResize = () => {
       const left = clampLeftWidth(panelsRef.current.left)
       const bottom = clampBottomHeight(panelsRef.current.bottom)
+      const aside = clampAsideWidth(panelsRef.current.aside)
 
-      panelsRef.current = { left, bottom }
+      panelsRef.current = { left, bottom, aside }
       setLeftWidth(left)
       setBottomHeight(bottom)
+      setAsideWidth(aside)
     }
 
     window.addEventListener('resize', onWindowResize)
@@ -433,13 +626,22 @@ function AppShell() {
     setBottomHeight(next)
   }, [])
 
+  const resizeAside = useCallback((value: number) => {
+    const next = clampAsideWidth(value)
+
+    panelsRef.current.aside = next
+    setAsideWidth(next)
+  }, [])
+
   function resetPanels() {
     const left = PANEL_LIMITS.left.fallback
     const bottom = PANEL_LIMITS.bottom.fallback
+    const aside = PANEL_LIMITS.aside.fallback
 
-    panelsRef.current = { left, bottom }
+    panelsRef.current = { left, bottom, aside }
     setLeftWidth(left)
     setBottomHeight(bottom)
+    setAsideWidth(aside)
 
     kryom()
       .updateSettings({ panelLeftWidth: left, panelBottomHeight: bottom })
@@ -582,6 +784,8 @@ function AppShell() {
     const entries = [...history.entries.slice(0, history.index + 1), activeCodePath].slice(-100)
 
     historyRef.current = { entries, index: entries.length - 1 }
+    syncNavPosition()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCodePath])
 
   // Session snapshots (Level 2B.2 + 3C): open code tabs plus
@@ -756,6 +960,7 @@ function AppShell() {
     setDiagSummary(null)
     setDiagnostics([])
     historyRef.current = { entries: [], index: -1 }
+    setNavPosition({ canBack: false, canForward: false })
 
     // Meta AI sessions are per-project: switching projects loads that
     // project's sessions, closing unloads them (records persist).
@@ -1146,6 +1351,7 @@ function AppShell() {
 
     navigatingRef.current = true
     historyRef.current = { entries: history.entries, index: next }
+    syncNavPosition()
 
     const target = history.entries[next]
     const existing = findCodeTabByPath(workbench.tabs, target)
@@ -1664,6 +1870,29 @@ function AppShell() {
     showBottom(tab)
   }
 
+  function focusTerminalPanel() {
+    showBottom('terminal')
+    terminalFocusNonce.current += 1
+    setTerminalFocus({ nonce: terminalFocusNonce.current })
+  }
+
+  // Aside (right dock) selection: re-selecting the visible view
+  // collapses the dock, VS Code style.
+  function selectAside(id: ActivityId) {
+    if (id === asideActivity && asideOpen) {
+      setAsideOpen(false)
+      return
+    }
+
+    setAsideActivity(id)
+    setAsideOpen(true)
+  }
+
+  function showAside(id: ActivityId) {
+    setAsideActivity(id)
+    setAsideOpen(true)
+  }
+
   function selectActivity(id: ActivityId) {
     const def = getActivity(id)
 
@@ -1671,35 +1900,26 @@ function AppShell() {
       return
     }
 
-    // Panel destinations toggle bottom-panel tabs, center
-    // destinations switch the center view, actions run shell
-    // commands. The sidebar keeps its own selection throughout.
-    if (def.area === 'panel') {
-      if (id === 'git') {
-        toggleBottom('git')
-        void refreshGitBranch()
-        return
-      }
+    // Aside destinations toggle the right dock. Panel/center/action
+    // areas remain valid for future extension destinations; no
+    // builtin uses them in Phase A (stage views stay reachable via
+    // the command palette and the AI Workspace hub).
+    if (def.area === 'aside') {
+      selectAside(id)
+      return
+    }
 
+    if (def.area === 'panel') {
       toggleBottom('problems')
       return
     }
 
     if (def.area === 'center') {
-      if (id === 'intel' || id === 'platform' || id === 'agent') {
-        setCenterView(id)
-        return
-      }
-
       setCenterView('home')
       return
     }
 
     if (def.area === 'action') {
-      if (id === 'ai') {
-        newMetaAI()
-      }
-
       return
     }
 
@@ -1720,32 +1940,22 @@ function AppShell() {
       return
     }
 
-    if (def.area === 'panel') {
-      if (id === 'git') {
-        showBottom('git')
-        void refreshGitBranch()
-        return
-      }
+    if (def.area === 'aside') {
+      showAside(id)
+      return
+    }
 
+    if (def.area === 'panel') {
       showBottom('problems')
       return
     }
 
     if (def.area === 'center') {
-      if (id === 'intel' || id === 'platform' || id === 'agent') {
-        setCenterView(id)
-        return
-      }
-
       setCenterView('home')
       return
     }
 
     if (def.area === 'action') {
-      if (id === 'ai') {
-        newMetaAI()
-      }
-
       return
     }
 
@@ -1753,28 +1963,13 @@ function AppShell() {
     setSidebarVisible(true)
   }
 
-  // Activity-bar active state: panel destinations reflect the bottom
-  // panel, center destinations the center view, sidebar views the
-  // sidebar. Meta AI lights while a Meta AI tab is active.
+  // Activity-bar active state: aside destinations reflect the dock,
+  // sidebar views the sidebar.
   function isActivitySelected(id: ActivityId): boolean {
-    if (id === 'home') {
-      return centerView === 'home'
-    }
+    const def = getActivity(id)
 
-    if (id === 'ai') {
-      return centerView === 'editor' && activeMetaTab !== null
-    }
-
-    if (id === 'intel' || id === 'platform' || id === 'agent') {
-      return centerView === id
-    }
-
-    if (id === 'git') {
-      return bottomOpen && bottomTab === 'git'
-    }
-
-    if (id === 'run') {
-      return bottomOpen && bottomTab === 'problems'
+    if (def?.area === 'aside') {
+      return asideOpen && asideActivity === id
     }
 
     return activity === id && sidebarVisible
@@ -1782,6 +1977,166 @@ function AppShell() {
 
   function showHome() {
     setCenterView('home')
+  }
+
+  async function toggleConfirmAllCommands() {
+    try {
+      const saved = await kryom().updateSettings({
+        confirmAllCommands: !settings.confirmAllCommands,
+      })
+
+      setSettings(saved)
+      reportStatus(
+        saved.confirmAllCommands
+          ? 'Approval required for commands'
+          : 'Routine-command approvals relaxed'
+      )
+    } catch (e: unknown) {
+      reportStatus(`Could not update approval mode: ${errorMessage(e)}`)
+    }
+  }
+
+  // D1 index: rebuild references from the live homes whenever the
+  // project or Meta sessions change; the saved index stays as the
+  // fallback when a listing fails. References only — no payloads.
+  useEffect(() => {
+    const stored = (() => {
+      try {
+        return loadThreadIndex(window.localStorage)
+      } catch {
+        return { index: { version: THREAD_INDEX_VERSION, refs: [] }, corrupt: true }
+      }
+    })()
+
+    setIndexCorrupt(stored.corrupt)
+
+    if (stored.index.refs.length > 0) {
+      setThreadRefs((previous) =>
+        previous.length === 0
+          ? filterThreadsForRoot(stored.index.refs, workspace?.root ?? '')
+          : previous
+      )
+    }
+
+    let cancelled = false
+    const root = workspace?.root ?? null
+
+    async function rebuild() {
+      try {
+        const chats =
+          root === null
+            ? []
+            : (await kryom().listChatSessions()).sessions
+        const research =
+          root === null ? [] : await kryom().listResearch()
+        const runs =
+          root === null ? [] : (await kryom().listOrchRuns()).runs
+
+        if (cancelled) {
+          return
+        }
+
+        const refs = filterThreadsForRoot(
+          buildThreadRefs({
+            root: root ?? '',
+            chats,
+            research,
+            agentRuns: runs,
+            metaSessions: Object.values(sessions).map((session) => ({
+              id: session.id,
+              title: session.title,
+              root: session.root,
+              updatedAt: session.updatedAt,
+            })),
+          }),
+          root ?? ''
+        )
+
+        setThreadRefs(refs)
+        saveThreadIndex(window.localStorage, {
+          version: THREAD_INDEX_VERSION,
+          refs,
+        })
+      } catch {
+        // Listing failure: keep showing the saved refs; the next
+        // project/session change retries. Never clears to empty here.
+        if (!cancelled) {
+          reportStatus('Thread history is temporarily unavailable')
+        }
+      }
+    }
+
+    void rebuild()
+
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspace?.root, sessions])
+
+  // History deep-open routing. Stale refs fail loud with a status
+  // message; nothing is deleted or repaired.
+  async function openThread(thread: ThreadRef) {
+    if (thread.mode === 'meta') {
+      openMetaSession(thread.ref)
+      return
+    }
+
+    if (thread.mode === 'agent') {
+      stageCenter('agent')
+      reportStatus(
+        `Opened Agent Runs console for “${thread.title}” (per-run restore is not supported; see Phase B report)`
+      )
+      return
+    }
+
+    if (thread.mode === 'chat') {
+      try {
+        const list = await kryom().listChatSessions()
+        const found = list.sessions.some((entry) => entry.id === thread.ref)
+
+        if (!found) {
+          reportStatus('Conversation is no longer available')
+          return
+        }
+      } catch (e: unknown) {
+        reportStatus(`Could not open conversation: ${errorMessage(e)}`)
+        return
+      }
+
+      showHome()
+      setDiscoveryMode('chat')
+      setChatSelect({ id: thread.ref, nonce: nextThreadNonce() })
+      return
+    }
+
+    try {
+      const list = await kryom().listResearch()
+      const found = list.some((entry) => entry.id === thread.ref)
+
+      if (!found) {
+        reportStatus('Research session is no longer available')
+        return
+      }
+    } catch (e: unknown) {
+      reportStatus(`Could not open research session: ${errorMessage(e)}`)
+      return
+    }
+
+    showHome()
+    setDiscoveryMode('research')
+    setResearchRestore({ sessionId: thread.ref, nonce: nextThreadNonce() })
+  }
+
+  function newThread(mode: ThreadMode) {
+    if (mode === 'meta') {
+      newMetaAI()
+      return
+    }
+
+    showHome()
+    setDiscoveryMode(mode)
+    setHomeNewRequest({ mode, nonce: nextThreadNonce() })
   }
 
   function stageCenter(mode: StageMode) {
@@ -2025,6 +2380,11 @@ function AppShell() {
     setSettingsOpen(true)
   }
 
+  function toggleTheme() {
+    setTheme((previous) => (previous === 'dark' ? 'light' : 'dark'))
+    reportStatus('Theme toggled')
+  }
+
   function runDiagnosticsNow() {
     if (!workspace) {
       reportStatus('Open a project first')
@@ -2184,6 +2544,33 @@ function AppShell() {
         case 'view.metaAI':
           newMetaAI()
           break
+        case 'view.extensions':
+          showSidebar('extensions')
+          break
+        case 'view.knowledge':
+          showAside('knowledge')
+          break
+        case 'view.history':
+          showAside('history')
+          break
+        case 'view.aiWorkspace':
+          showAside('ai-workspace')
+          break
+        case 'view.agent':
+          stageCenter('agent')
+          break
+        case 'view.palette':
+          setPaletteOpen(true)
+          break
+        case 'view.settings':
+          openGeneralSettings()
+          break
+        case 'view.toggleAside':
+          setAsideOpen((open) => !open)
+          break
+        case 'view.toggleTheme':
+          toggleTheme()
+          break
         case 'view.chat':
         case 'view.agent':
         case 'view.research':
@@ -2210,15 +2597,28 @@ function AppShell() {
         case 'view.focusEditor':
           if (activeCodeTab || activeMetaTab) {
             setCenterView('editor')
+            editorApi.current?.focus()
           } else {
             showHome()
           }
           break
         case 'view.terminal':
-          toggleBottom('terminal')
+          // Opening the terminal also focuses its input, VS Code
+          // style; closing never steals focus anywhere.
+          if (bottomTab === 'terminal' && bottomOpen) {
+            toggleBottom('terminal')
+          } else {
+            focusTerminalPanel()
+          }
+          break
+        case 'view.problems':
+          toggleBottom('problems')
           break
         case 'view.output':
           showBottom('output')
+          break
+        case 'view.debugConsole':
+          showBottom('debug')
           break
         case 'view.toggleSidebar':
           setSidebarVisible((visible) => !visible)
@@ -2256,7 +2656,7 @@ function AppShell() {
           reportStatus('Terminal cleared')
           break
         case 'terminal.focus':
-          showBottom('terminal')
+          focusTerminalPanel()
           break
         case 'help.shortcuts':
           setShortcutsOpen(true)
@@ -2294,6 +2694,73 @@ function AppShell() {
     return kryom().onCommand((command) => commandRef.current(command))
   }, [])
 
+  // Command palette entries (Phase A). Every entry dispatches through
+  // the live command ref — the same path as the native menu — so each
+  // id maps to a real registered handler with current shell state.
+  const paletteCommands = useMemo<PaletteCommand[]>(() => {
+    const via = (id: string, label: string, hint?: string): PaletteCommand => ({
+      id: `menu:${id}`,
+      label,
+      hint,
+      run: () => commandRef.current({ id } as KryomCommand),
+    })
+
+    const entries: PaletteCommand[] = [
+      via('file.newFile', 'File: New Text File', 'Ctrl+N'),
+      via('file.openFile', 'File: Open File…', 'Ctrl+O'),
+      via('file.openFolder', 'File: Open Folder…', 'Ctrl+Shift+O'),
+      via('file.save', 'File: Save', 'Ctrl+S'),
+      via('file.saveAs', 'File: Save As…', 'Ctrl+Shift+S'),
+      via('file.closeEditor', 'File: Close Editor', 'Ctrl+W'),
+      via('file.closeFolder', 'File: Close Folder'),
+      via('view.explorer', 'View: Explorer', 'Ctrl+Shift+E'),
+      via('view.search', 'View: Search', 'Ctrl+Shift+F'),
+      via('view.git', 'View: Source Control', 'Ctrl+Shift+G'),
+      via('view.run', 'View: Run and Debug', 'Ctrl+Shift+D'),
+      via('view.extensions', 'View: Extensions', 'Ctrl+Shift+X'),
+      via('view.aiWorkspace', 'View: AI Workspace', 'Ctrl+Shift+A'),
+      via('view.knowledge', 'View: Knowledge', 'Ctrl+Shift+K'),
+      via('view.history', 'View: History', 'Ctrl+Shift+H'),
+      via('view.home', 'View: Welcome Home'),
+      via('view.metaAI', 'AI: New AI Thread', 'Ctrl+Shift+M'),
+      via('view.intel', 'View: Intelligence'),
+      via('view.platform', 'View: Platform'),
+      via('view.agent', 'View: Agent Runs'),
+      via('view.focusEditor', 'View: Focus Editor', 'Ctrl+1'),
+      via('view.splitRight', 'View: Split Editor Right', 'Ctrl+\\'),
+      via('view.toggleSidebar', 'View: Toggle Sidebar', 'Ctrl+B'),
+      via('view.toggleRight', 'View: Toggle Bottom Panel', 'Ctrl+J'),
+      via('view.problems', 'View: Problems', 'Ctrl+Shift+J'),
+      via('view.output', 'View: Output'),
+      via('view.debugConsole', 'View: Debug Console'),
+      via('view.toggleAside', 'View: Toggle Auxiliary Panel'),
+      via('view.toggleTheme', 'View: Toggle Theme'),
+      via('go.file', 'Go to File…', 'Ctrl+P'),
+      via('go.line', 'Go to Line…', 'Ctrl+G'),
+      via('go.back', 'Go Back', 'Alt+Left'),
+      via('go.forward', 'Go Forward', 'Alt+Right'),
+      via('run.diagnostics', 'Run Diagnostics', 'F5'),
+      via('terminal.focus', 'Terminal: Focus Terminal'),
+      via('terminal.clear', 'Terminal: Clear Terminal'),
+      via('terminal.cancel', 'Terminal: Cancel Running Command'),
+      via('view.settings', 'Preferences: Open Settings', 'Ctrl+,'),
+      via('help.shortcuts', 'Help: Keyboard Shortcuts'),
+      via('help.diagnostics', 'Help: Export Diagnostics'),
+    ]
+
+    for (const root of recent) {
+      entries.push({
+        id: `recent:${root}`,
+        label: `Open Recent: ${baseName(root)}`,
+        hint: root,
+        run: () =>
+          commandRef.current({ id: 'file.openPath', payload: { path: root } } as KryomCommand),
+      })
+    }
+
+    return entries
+  }, [recent])
+
   const projectInfo = summary
     ? `${summary.projectType}${
         summary.frameworks.length > 0
@@ -2309,10 +2776,9 @@ function AppShell() {
   const sidebarTitle: Record<string, string> = {
     explorer: 'EXPLORER',
     search: 'SEARCH',
+    git: 'SOURCE CONTROL',
+    run: 'RUN AND DEBUG',
     extensions: '',
-    tools: '',
-    memory: '',
-    account: '',
   }
 
   const STAGE_TABS: Array<{ id: StageMode; label: string }> = [
@@ -2321,11 +2787,21 @@ function AppShell() {
     { id: 'agent', label: 'AGENT' },
   ]
 
+  // Problems badge counts (Phase D1): the backend reports error and
+  // warning severities only — there is no informational level.
+  const problemErrors = diagnostics.filter(
+    (entry) => entry.severity === 'error'
+  ).length
+  const problemWarnings = diagnostics.filter(
+    (entry) => entry.severity === 'warning'
+  ).length
+  const problemTotal = diagnostics.length
+
   const BOTTOM_TABS: Array<{ id: BottomTab; label: string }> = [
     { id: 'terminal', label: 'TERMINAL' },
     { id: 'problems', label: 'PROBLEMS' },
-    { id: 'git', label: 'SOURCE CONTROL' },
     { id: 'output', label: 'OUTPUT' },
+    { id: 'debug', label: 'DEBUG CONSOLE' },
     { id: 'tasks', label: 'TASKS' },
   ]
 
@@ -2396,13 +2872,17 @@ function AppShell() {
         workspaceRoot={workspace?.root ?? null}
         activeLabel={showEditor ? activeLabel : null}
         dirty={dirty}
-        autoSave={autoSave}
         sidebarVisible={sidebarVisible}
         bottomOpen={bottomOpen}
+        asideOpen={asideOpen}
         onToggleSidebar={() => setSidebarVisible((visible) => !visible)}
         onToggleBottom={() => setBottomOpen((open) => !open)}
-        discoveryMode={discoveryMode}
-        onDiscoveryModeChange={setDiscoveryMode}
+        onToggleAside={() => setAsideOpen((open) => !open)}
+        onOpenPalette={() => setPaletteOpen(true)}
+        canGoBack={navPosition.canBack}
+        canGoForward={navPosition.canForward}
+        onGoBack={() => navigateHistory(-1)}
+        onGoForward={() => navigateHistory(1)}
       />
 
       <div className="shell">
@@ -2439,6 +2919,13 @@ function AppShell() {
                   onNewFolder={(dir) => void createEntry(dir, 'directory')}
                   onRename={(node) => void renameEntry(node)}
                   onDelete={(node) => void deleteEntry(node)}
+                  onCopyPath={(_path, copied) =>
+                    setStatus(
+                      copied
+                        ? 'Path copied to clipboard'
+                        : 'Copy is unavailable in this context.'
+                    )
+                  }
                 />
               </div>
 
@@ -2457,35 +2944,22 @@ function AppShell() {
                 />
               </div>
 
-              <div hidden={activity !== 'tools'} className="tab-body">
-                <ConnectionsPanel
+              <div hidden={activity !== 'git'} className="tab-body">
+                <GitPanel
                   workspaceRoot={workspace?.root ?? null}
-                  defaultModel={settings.defaultModel}
-                  activeFileName={activeCodeTab ? baseName(activeCodeTab.path) : ''}
-                  activeFileContent={activeCodeTab?.content ?? ''}
                   onStatus={reportStatus}
-                  onOpenSourceControl={() => showBottom('git')}
-                  onCloneRepository={(url) => cloneRepository(url)}
-                  onCreateReport={(template) => void createReport(template)}
-                  onExportActiveFile={(template) => void exportActiveFile(template)}
-                  onImportSave={(text, fileName) => void importSave(text, fileName)}
+                  onOpenFile={(path) => void openEditorFile(path)}
                 />
               </div>
 
-              <div hidden={activity !== 'memory'} className="tab-body">
-                <MemoryPanel
+              <div hidden={activity !== 'run'} className="tab-body">
+                <RunDebugSidebar
                   workspaceRoot={workspace?.root ?? null}
-                  onStatus={reportStatus}
-                />
-              </div>
-
-              <div hidden={activity !== 'account'} className="tab-body">
-                <ProfilePanel
-                  workspaceRoot={workspace?.root ?? null}
-                  defaultModel={settings.defaultModel}
-                  summary={summary}
-                  onOpenSettings={openGeneralSettings}
-                  onOpenAbout={() => setAboutOpen(true)}
+                  diagnostics={diagSummary}
+                  onRunDiagnostics={() => runDiagnosticsNow()}
+                  onOpenProblems={() => showBottom('problems')}
+                  onOpenTerminal={() => showBottom('terminal')}
+                  onOpenDebugConsole={() => showBottom('debug')}
                 />
               </div>
         </aside>
@@ -2551,6 +3025,13 @@ function AppShell() {
                       }
                       onDeleteSession={(sessionId) =>
                         void deleteSession(sessionId)
+                      }
+                      onCopyPath={(_path, copied) =>
+                        setStatus(
+                          copied
+                            ? 'Path copied to clipboard'
+                            : 'Copy is unavailable in this context.'
+                        )
                       }
                       content={groupCode?.content ?? ''}
                       dirty={groupCode ? isTabDirty(groupCode) : false}
@@ -2638,7 +3119,7 @@ function AppShell() {
                   workspaceRoot={workspace?.root ?? null}
                   defaultModel={settings.defaultModel}
                   onStatus={reportStatus}
-                  onOpenConnections={() => showSidebar('tools')}
+                  onOpenConnections={() => showAside('knowledge')}
                   onOpenFile={(path, line) =>
                     void openEditorFile(
                       resolveAgainstRoot(workspace?.root ?? null, path),
@@ -2718,6 +3199,13 @@ function AppShell() {
                 onResearchAsk={handleDiscoveryResearchAsk}
                 onStatus={reportStatus}
                 onOpenProviderSettings={openProviderSettings}
+                onFilesChanged={(paths) => void handleAgentFilesChanged(paths)}
+                confirmAllCommands={settings.confirmAllCommands}
+                onToggleConfirmAll={() => void toggleConfirmAllCommands()}
+                onOpenProject={() => void openProject()}
+                chatSelect={chatSelect}
+                researchRestore={researchRestore}
+                newRequest={homeNewRequest}
                 initialPrompt={homePrompt}
                 onInitialPromptConsumed={() => setHomePrompt(null)}
                 onOpenFile={(path) => void openEditorFile(path)}
@@ -2725,27 +3213,34 @@ function AppShell() {
             </section>
           )}
 
-          {/* Bottom dock: single mounts for Terminal, Problems, Source
-              Control, and Output. The sidebar no longer mounts Git or
-              Problems; their activity-bar entries toggle these tabs. */}
-          {/* Always mounted (hidden when closed) so terminal runs, diagnostics, and git state survive docking. */}
+          {/* Bottom dock: single mounts for Terminal, Problems,
+              Output, Debug Console, and Tasks (Phase D1). Source
+              Control lives in the sidebar; Run and Debug routes here.
+              Always mounted (hidden when closed) so terminal runs,
+              diagnostics, and output survive docking. */}
           {(
             <div hidden={!bottomOpen} className="bottom-dock">
-              <ResizeHandle
-                orientation="horizontal"
-                direction={-1}
-                label="Resize bottom panel"
-                value={bottomHeight}
-                min={PANEL_LIMITS.bottom.min}
-                max={PANEL_LIMITS.bottom.max}
-                onResize={resizeBottom}
-                onResizeEnd={persistPanels}
-              />
+              {!bottomMaximized && (
+                <ResizeHandle
+                  orientation="horizontal"
+                  direction={-1}
+                  label="Resize bottom panel"
+                  value={bottomHeight}
+                  min={PANEL_LIMITS.bottom.min}
+                  max={PANEL_LIMITS.bottom.max}
+                  onResize={resizeBottom}
+                  onResizeEnd={persistPanels}
+                />
+              )}
 
               <ErrorBoundary compact title="The bottom panel crashed.">
               <aside
                 className="bottom-panel"
-                style={{ height: bottomHeight }}
+                style={{
+                  height: bottomMaximized
+                    ? maximizedBottomHeight
+                    : bottomHeight,
+                }}
                 aria-label="Bottom panel"
               >
                 <div
@@ -2765,15 +3260,42 @@ function AppShell() {
                       }
                       onClick={() => toggleBottom(tab.id)}
                       title={
-                        bottomTab === tab.id
-                          ? `Hide ${tab.label} (click again to collapse)`
-                          : `Show ${tab.label}`
+                        tab.id === 'problems' && problemTotal > 0
+                          ? `${problemErrors} error(s), ${problemWarnings} warning(s)`
+                          : bottomTab === tab.id
+                            ? `Hide ${tab.label} (click again to collapse)`
+                            : `Show ${tab.label}`
                       }
                     >
                       {tab.label}
+                      {tab.id === 'problems' && problemTotal > 0 && (
+                        <span
+                          className="panel-tab-badge"
+                          aria-label={`${problemErrors} errors, ${problemWarnings} warnings`}
+                        >
+                          {problemTotal}
+                        </span>
+                      )}
                     </button>
                   ))}
                   <span className="spacer" />
+                  <button
+                    className="panel-tab bottom-maximize"
+                    onClick={() => setBottomMaximized((value) => !value)}
+                    title={
+                      bottomMaximized
+                        ? 'Restore bottom panel size'
+                        : 'Maximize bottom panel'
+                    }
+                    aria-label={
+                      bottomMaximized
+                        ? 'Restore bottom panel size'
+                        : 'Maximize bottom panel'
+                    }
+                    aria-pressed={bottomMaximized}
+                  >
+                    {bottomMaximized ? 'Restore' : 'Maximize'}
+                  </button>
                   <button
                     className="panel-tab bottom-collapse"
                     onClick={() => setBottomOpen(false)}
@@ -2789,6 +3311,10 @@ function AppShell() {
                     <TerminalPanelView
                       controller={terminal}
                       workspaceRoot={workspace?.root ?? null}
+                      focusRequest={terminalFocus}
+                      theme={theme}
+                      fontSize={terminalFontSize}
+                      renderer={terminalRenderer}
                     />
                   </div>
                   <div hidden={bottomTab !== 'problems'} className="tab-body">
@@ -2810,14 +3336,11 @@ function AppShell() {
                       onExplainDiagnostic={handleExplainDiagnostic}
                     />
                   </div>
-                  <div hidden={bottomTab !== 'git'} className="tab-body">
-                    <GitPanel
-                      workspaceRoot={workspace?.root ?? null}
-                      onStatus={reportStatus}
-                    />
-                  </div>
                   <div hidden={bottomTab !== 'output'} className="tab-body">
                     <OutputPanel />
+                  </div>
+                  <div hidden={bottomTab !== 'debug'} className="tab-body">
+                    <DebugConsolePanel />
                   </div>
                   <div hidden={bottomTab !== 'tasks'} className="tab-body">
                     <TasksPanel
@@ -2832,6 +3355,88 @@ function AppShell() {
             </div>
           )}
         </section>
+
+        {asideOpen && (
+          <ResizeHandle
+            orientation="vertical"
+            direction={-1}
+            label="Resize auxiliary panel"
+            value={asideWidth}
+            min={PANEL_LIMITS.aside.min}
+            max={PANEL_LIMITS.aside.max}
+            onResize={resizeAside}
+            onResizeEnd={() => undefined}
+          />
+        )}
+
+        <ErrorBoundary title="Auxiliary panel">
+          <AsidePanel
+            open={asideOpen}
+            width={asideWidth}
+            title={
+              asideActivity === 'knowledge'
+                ? 'KNOWLEDGE'
+                : asideActivity === 'history'
+                  ? 'HISTORY'
+                  : 'AI WORKSPACE'
+            }
+            onClose={() => setAsideOpen(false)}
+          >
+            <div
+              hidden={asideActivity !== 'ai-workspace'}
+              className="tab-body"
+            >
+              <AiWorkspaceHub
+                onNewThread={() => newMetaAI()}
+                onOpenChat={() => {
+                  showHome()
+                  setDiscoveryMode('chat')
+                }}
+                onOpenResearch={() => {
+                  showHome()
+                  setDiscoveryMode('research')
+                }}
+                onOpenAgentRuns={() => stageCenter('agent')}
+                onOpenIntel={() => stageCenter('intel')}
+                onOpenPlatform={() => stageCenter('platform')}
+              />
+            </div>
+
+            <div hidden={asideActivity !== 'knowledge'} className="tab-body">
+              <p className="side-subhead">CONNECTIONS</p>
+              <ConnectionsPanel
+                workspaceRoot={workspace?.root ?? null}
+                defaultModel={settings.defaultModel}
+                activeFileName={activeCodeTab ? baseName(activeCodeTab.path) : ''}
+                activeFileContent={activeCodeTab?.content ?? ''}
+                onStatus={reportStatus}
+                onOpenSourceControl={() => showSidebar('git')}
+                onCloneRepository={(url) => cloneRepository(url)}
+                onCreateReport={(template) => void createReport(template)}
+                onExportActiveFile={(template) => void exportActiveFile(template)}
+                onImportSave={(text, fileName) => void importSave(text, fileName)}
+              />
+              <p className="side-subhead">MEMORY</p>
+              <MemoryPanel
+                workspaceRoot={workspace?.root ?? null}
+                onStatus={reportStatus}
+              />
+            </div>
+
+            <div hidden={asideActivity !== 'history'} className="tab-body">
+              <HistoryPanel
+                threads={threadRefs}
+                recent={recent}
+                corrupt={indexCorrupt}
+                filter={historyFilter}
+                onFilterChange={setHistoryFilter}
+                onOpenThread={(thread) => void openThread(thread)}
+                onNewThread={newThread}
+                onOpenRecent={(root) => void openRecentPath(root)}
+              />
+            </div>
+          </AsidePanel>
+        </ErrorBoundary>
       </div>
 
       <StatusBar
@@ -2839,7 +3444,10 @@ function AppShell() {
         workspaceName={workspace ? baseName(workspace.root) : null}
         branch={gitBranch.branch}
         branchKnown={gitBranch.known}
-        onBranchRefresh={() => void refreshGitBranch()}
+        onBranchRefresh={() => {
+          showSidebar('git')
+          void refreshGitBranch()
+        }}
         fileName={activeCodeTab ? baseName(activeCodeTab.path) : null}
         dirty={dirty}
         language={activeCodeTab ? detectLanguage(baseName(activeCodeTab.path)) : null}
@@ -2872,6 +3480,12 @@ function AppShell() {
         onClose={() => setQuickOpen(false)}
       />
 
+      <CommandPalette
+        open={paletteOpen}
+        commands={paletteCommands}
+        onClose={() => setPaletteOpen(false)}
+      />
+
       <TemplatePickerDialog
         open={templatePickerOpen}
         onClose={() => setTemplatePickerOpen(false)}
@@ -2898,6 +3512,16 @@ function AppShell() {
         panelLeftWidth={leftWidth}
         panelBottomHeight={bottomHeight}
         onResetPanels={resetPanels}
+        terminalFontSize={terminalFontSize}
+        onTerminalFontSizeChange={(size) =>
+          setTerminalFontSize(clampTerminalFontSize(size))
+        }
+        terminalRenderer={terminalRenderer}
+        onTerminalRendererChange={setTerminalRenderer}
+        accountWorkspaceRoot={workspace?.root ?? null}
+        accountModel={settings.defaultModel}
+        accountSummary={summary}
+        onOpenAbout={() => setAboutOpen(true)}
       />
 
       <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />

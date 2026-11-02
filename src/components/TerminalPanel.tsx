@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { kryom, errorMessage, isCancelError } from '../api/kryom'
 import { confirmCommandRun } from '../utils/command-confirm'
+import { logOutput } from '../utils/output-log'
+import { XtermView, type XtermViewHandle } from './terminal/XtermView'
 import { useDialogs } from './dialogs'
 
 export interface TerminalPanelProps {
@@ -39,7 +41,9 @@ export function useTerminalController(
   requireConfirmAll = false
 ): TerminalController {
   const dialogs = useDialogs()
-  const [command, setCommand] = useState('npm run build')
+  // The input starts empty: the placeholder names the action, and no
+  // accidental Run can execute a pre-filled command.
+  const [command, setCommand] = useState('')
   const [entries, setEntries] = useState<TerminalRunEntry[]>([])
   const [running, setRunning] = useState(false)
   const [runningList, setRunningList] = useState<KryomRunningProcess[]>([])
@@ -152,6 +156,20 @@ export function useTerminalController(
         )
       )
       setRunningList([])
+      // One-line Debug Console summary (Phase D1, decision D4). The
+      // full output stays in this panel's entries; only run metadata
+      // crosses into the shared output log.
+      logOutput(
+        'debug',
+        `${trimmed} → exit ${result.exitCode}` +
+          (result.cancelled
+            ? ' · cancelled'
+            : result.timedOut
+              ? ' · timed out'
+              : result.exitCode === 0
+                ? ' · success'
+                : ' · failed')
+      )
       onStatus(
         result.cancelled
           ? 'Command cancelled'
@@ -221,6 +239,15 @@ export function useTerminalController(
 
 export interface TerminalPanelViewProps {
   controller: TerminalController
+  // Focus requests (Phase D1): Terminal: Focus Terminal and the
+  // Ctrl+` toggle bump the nonce; the view moves DOM focus to the
+  // command input. Null/absent = no request.
+  focusRequest?: { nonce: number } | null
+  // D2 renderer selection. Defaults preserve the full terminal when
+  // a host does not pass them (tests, self-contained mount).
+  theme?: 'dark' | 'light'
+  fontSize?: number
+  renderer?: 'xterm' | 'pre'
   workspaceRoot: string | null
 }
 
@@ -228,6 +255,21 @@ export function TerminalPanelView(props: TerminalPanelViewProps) {
   const { controller } = props
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const [autoScroll, setAutoScroll] = useState(true)
+  const inputRef = useRef<HTMLInputElement | null>(null)
+
+  // Focus-terminal requests land here: focusing a disabled input is
+  // a harmless no-op, so no enabled check is needed.
+  useEffect(() => {
+    if (props.focusRequest) {
+      inputRef.current?.focus()
+    }
+  }, [props.focusRequest])
+
+  // D2 renderer: xterm by default, legacy <pre> markup when the
+  // fallback setting selects it.
+  const useXterm = (props.renderer ?? 'xterm') === 'xterm'
+  const xtermRef = useRef<XtermViewHandle | null>(null)
+  const [hasSelection, setHasSelection] = useState(false)
 
   useEffect(() => {
     if (autoScroll) {
@@ -253,6 +295,7 @@ export function TerminalPanelView(props: TerminalPanelViewProps) {
         <span className="prompt-symbol">&gt;</span>
 
         <input
+          ref={inputRef}
           aria-label="Terminal command"
           value={controller.command}
           onChange={(event) => controller.setCommand(event.target.value)}
@@ -309,6 +352,17 @@ export function TerminalPanelView(props: TerminalPanelViewProps) {
         >
           Clear
         </button>
+        {useXterm && (
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => xtermRef.current?.copySelection()}
+            disabled={!hasSelection}
+            title="Copy selected terminal output (Ctrl+Shift+C)"
+          >
+            Copy
+          </button>
+        )}
       </form>
 
       <label className="terminal-autoscroll">
@@ -320,10 +374,16 @@ export function TerminalPanelView(props: TerminalPanelViewProps) {
         Auto-scroll to latest output
       </label>
 
-      {controller.runningList.length > 0 && (
+      {controller.runningList.some((item) => item.origin === 'user-terminal') && (
         <p className="muted padded">
           Running:{' '}
-          {controller.runningList.map((item) => item.command).join(' · ')}
+          {controller.runningList.filter((item) => item.origin === 'user-terminal').map((item) => item.command).join(' · ')}
+        </p>
+      )}
+
+      {props.workspaceRoot && (
+        <p className="muted terminal-cwd">
+          Runs in {props.workspaceRoot}
         </p>
       )}
 
@@ -331,6 +391,25 @@ export function TerminalPanelView(props: TerminalPanelViewProps) {
         <p className="inline-error padded">{controller.error}</p>
       )}
 
+      {useXterm && controller.entries.length > 0 && (
+        <div className="terminal-log terminal-log-xterm">
+          {controller.entries.some((entry) => !entry.result) && (
+            <div className="ai-loading" role="status">
+              <span className="loading-dot" />
+              Running…
+            </div>
+          )}
+          <XtermView
+            ref={xtermRef}
+            entries={controller.entries}
+            theme={props.theme ?? 'dark'}
+            fontSize={props.fontSize ?? 13}
+            autoScroll={autoScroll}
+            onSelectionAvailable={setHasSelection}
+          />
+        </div>
+      )}
+      {(!useXterm || controller.entries.length === 0) && (
       <div className="terminal-log">
         {controller.entries.length === 0 && (
           <p className="muted padded">
@@ -378,6 +457,7 @@ export function TerminalPanelView(props: TerminalPanelViewProps) {
 
         <div ref={bottomRef} />
       </div>
+      )}
     </section>
   )
 }

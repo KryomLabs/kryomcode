@@ -12,22 +12,8 @@
   text-align: center;
 }
 
-.hero-mark {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  background: var(--kc-accent-dim);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
 .hero-brand {
-  margin: 14px 0 0;
+  margin: 0;
   color: var(--kc-text);
   font-size: 15px;
   font-weight: 650;
@@ -96,5 +82,236 @@
 
   .hero-title {
     font-size: 22px;
+  }
+}
+
+/* ---- Phase B: unified workspace hero + composer ---- */
+.workspace-modes {
+  margin-top: 18px;
+}
+
+.hero-b {
+  justify-content: center;
+  gap: 0;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding-top: 40px;
+}
+
+.hero-b .hero-title {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.hero-composer {
+  width: 100%;
+  max-width: 640px;
+  margin-top: 26px;
+}
+
+.composer {
+  background: var(--kc-panel);
+  border: 1px solid var(--kc-btn-border);
+  border-radius: 12px;
+  padding: 12px 12px 8px;
+  text-align: left;
+}
+
+.composer:focus-within {
+  border-color: var(--kc-focus);
+}
+
+.composer-input {
+  display: block;
+  width: 100%;
+  min-height: 66px;
+  max-height: 200px;
+  resize: none;
+  border: 0;
+  background: transparent;
+  padding: 2px 4px;
+  color: var(--kc-text);
+  font-size: 14px;
+  line-height: 1.55;
+  outline: none;
+  overflow-y: auto;
+}
+
+.composer-input::placeholder {
+  color: var(--kc-text-faint);
+}
+
+.composer-attach-row {
+  margin-bottom: 8px;
+}
+
+.composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.composer-btn {
+  padding: 4px 10px;
+  border: 1px solid var(--kc-btn-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--kc-text-dim);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.composer-btn:hover:not(:disabled) {
+  color: var(--kc-text);
+  border-color: var(--kc-focus);
+}
+
+.composer-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.composer-approval.on {
+  color: var(--kc-accent);
+  border-color: var(--kc-accent);
+}
+
+.composer-model select {
+  max-width: 190px;
+  padding: 4px 6px;
+  border: 1px solid var(--kc-btn-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--kc-text-dim);
+  font-size: 11px;
+}
+
+.composer-count {
+  color: var(--kc-text-faint);
+  font-size: 11px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.composer-count.over {
+  color: var(--kc-danger);
+  font-weight: 700;
+}
+
+.composer-error {
+  color: var(--kc-danger);
+  font-size: 11px;
+}
+
+.composer-send {
+  padding: 5px 18px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: var(--kc-btn);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.composer-send:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.composer-send:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.composer-send.stop {
+  background: var(--kc-danger-soft, var(--kc-panel-deep));
+  color: var(--kc-danger);
+  border-color: var(--kc-danger);
+}
+
+.hero-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.toolbar-btn {
+  padding: 4px 12px;
+  border: 1px solid var(--kc-btn-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--kc-text-dim);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolbar-btn:hover:not(:disabled) {
+  color: var(--kc-text);
+  border-color: var(--kc-focus);
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.history-filter {
+  display: flex;
+  gap: 6px;
+  padding: 8px 8px 0;
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  padding: 3px 10px;
+  border: 1px solid var(--kc-btn-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--kc-text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.filter-chip:hover {
+  color: var(--kc-text);
+}
+
+.filter-chip.active {
+  color: #fff;
+  background: var(--kc-btn);
+  border-color: transparent;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .hero-b .hero-title {
+    white-space: normal;
+  }
+
+  .composer-model select {
+    max-width: 130px;
   }
 }

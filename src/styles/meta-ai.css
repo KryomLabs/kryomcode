@@ -259,11 +259,12 @@
   font-size: 12px;
 }
 
+/* Phase E: the message list keeps the .ai-messages scroller (flex
+   child, min-height 0, overflow-y auto). Earlier overrides collapsed
+   it into the outer workspace scroller, silently disabling
+   stick-to-bottom follow. */
 .meta-messages {
   border-top: none;
-  flex: none;
-  max-height: none;
-  overflow: visible;
 }
 
 .meta-embedded {

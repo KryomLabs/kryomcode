@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { kryom, errorMessage, isCancelError } from '../api/kryom'
 import { resolveAgainstRoot } from '../utils/paths'
+import { logOutput } from '../utils/output-log'
 import { confirmCommandRun } from '../utils/command-confirm'
 import { useDialogs } from './dialogs'
 
@@ -97,6 +98,15 @@ export function ProblemsPanel(props: ProblemsPanelProps) {
             : 'Diagnostics failed'
       )
       resultRef.current?.(next.diagnostics.length, next.success)
+      // One-line Debug Console summary (Phase D1, decision D4). The
+      // full output stays in this panel's raw-output view; only run
+      // metadata crosses into the shared output log.
+      logOutput(
+        'debug',
+        `${trimmed} → exit ${next.exitCode} · ${next.diagnostics.length} problem(s)` +
+          (next.cancelled ? ' · cancelled' : '') +
+          (next.timedOut ? ' · timed out' : '')
+      )
       diagnosticsRef.current?.(next)
     } catch (e) {
       setResult(null)
@@ -114,14 +124,28 @@ export function ProblemsPanel(props: ProblemsPanelProps) {
     }
   }
 
-  // Diagnostics share the terminal process registry, so Stop uses
-  // the same kill-all cancel as the terminal panel.
+  // Diagnostics runs carry the 'diagnostics' origin, so Stop
+  // uses the scoped diagnostics cancel channel (never kill-all).
   function stop() {
     if (!running) {
       return
     }
 
-    kryom().cancelCommand().catch(() => undefined)
+    kryom().cancelDiagnostics().catch(() => undefined)
+  }
+
+  // Per-tab Clear (Phase D1): drops the last result and its editor
+  // markers/badge via the existing null-result path. The status bar
+  // keeps describing the last completed run.
+  function clearResults() {
+    if (running) {
+      return
+    }
+
+    setResult(null)
+    setError('')
+    diagnosticsRef.current?.(null)
+    props.onStatus('Problems cleared')
   }
 
   // External runs (Run menu / F5) use the current command, falling
@@ -170,6 +194,15 @@ export function ProblemsPanel(props: ProblemsPanelProps) {
         </button>
         <button type="button" disabled={!running} onClick={stop}>
           Stop
+        </button>
+        <button
+          type="button"
+          className="secondary-button"
+          disabled={running || (!result && !error)}
+          onClick={clearResults}
+          title="Clear problems results"
+        >
+          Clear
         </button>
       </form>
 

@@ -11,7 +11,10 @@ import { kryom, errorMessage } from '../api/kryom'
 import { AiChat, type AiChatProps } from './AiChat'
 import { useDialogs } from './dialogs'
 
-export type ChatSessionsProps = AiChatProps
+export type ChatSessionsProps = AiChatProps & {
+  // History deep-open: switch to this conversation once per nonce.
+  externalSelect?: { id: string; nonce: number } | null
+}
 
 export function ChatSessions(props: ChatSessionsProps) {
   const dialogs = useDialogs()
@@ -108,6 +111,26 @@ export function ChatSessions(props: ChatSessionsProps) {
 
     return () => clearTimeout(timer)
   }, [searchQuery, props.workspaceRoot, sessions])
+
+  // Runs every render: cheap, and retries naturally once a
+  // switch/create/delete in flight finishes (busy flips false).
+  const consumedSelectNonce = useRef<number | null>(null)
+
+  useEffect(() => {
+    const select = props.externalSelect
+
+    if (
+      !select ||
+      consumedSelectNonce.current === select.nonce ||
+      busy ||
+      select.id === activeId
+    ) {
+      return
+    }
+
+    consumedSelectNonce.current = select.nonce
+    void switchTo(select.id)
+  })
 
   async function switchTo(id: string) {
     if (busy || id === activeId) {

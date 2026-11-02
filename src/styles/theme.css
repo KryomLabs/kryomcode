@@ -1,42 +1,9 @@
-/* KryomCode theme tokens: dark backfill plus the light theme.
-   data-theme is set on <html> by src/utils/theme.ts; dark is the
-   default and light overrides the same tokens, so components never
-   branch on theme in markup. Imported AFTER app.css. */
-
-/* ---- Dark backfill ----
-   app.css references these tokens but the pre-existing .ide token
-   block never defined them, so they resolved to `unset`
-   (transparent inputs, invisible hovers/selections). Values below
-   follow the neighbouring palette ramps and the --kryom-*
-   equivalents in meta-ai.css; they restore the intended dark look.
-   TODO(verify): when shell access allows, diff against the
-   pre-tokenization app.css in git history and adjust if needed. */
-.ide {
-  --kc-input: #101014;
-  --kc-input-border: #3b3b46;
-  --kc-link: #6ea8fe;
-  --kc-strip: #1d1d26;
-  --kc-well: #101014;
-  --kc-text-faint-soft: #6e6e7a;
-  --kc-danger-soft: #f1aeb5;
-  --kc-danger-bg: #3d2226;
-  --kc-danger-border: #6b2c36;
-  --kc-tint: #232139;
-  --kc-tint-border: #3b3860;
-  --kc-accent-soft: #c4b5fd;
-  --kc-accent-btn: #7869e3;
-  --kc-quote: #55555f;
-  --kc-ok-soft: #a9efc5;
-  --kc-ok-border: #2e5c3f;
-  --kc-warn-border: #66592c;
-  --kc-warn-bright: #fbbf24;
-  --kc-risk-high: #ff7a93;
-  --kc-danger-btn: #b2424e;
-  --kc-danger-btn-hover: #c2525f;
-  --kc-error: #ff7a93;
-  --kc-scroll: #42424d;
-  --kc-on-accent: #ffffff;
-}
+/* KryomCode theme tokens: KryomCode Professional Light plus frozen
+   component styles. Dark values live in src/styles/tokens.css (the
+   single source of truth, Phase 1); this file carries the light
+   values, base page rules, and a few component styles that predate
+   the token pass. data-theme is set on <html> by src/utils/theme.ts.
+   Imported LAST so light values win. */
 
 /* ---- Base page + native controls per theme ---- */
 html[data-theme='light'] {
@@ -49,43 +16,63 @@ html:not([data-theme]) {
 }
 
 html[data-theme='light'] body {
-  background: #f4f4f6;
-  color: #1e1e22;
+  background: #f2f2f5;
+  color: #191a20;
 }
 
 html[data-theme='dark'] body,
 html:not([data-theme]) body {
-  background: #101114;
-  color: #e4e4e7;
+  background: #0e0f13;
+  color: #e7e7ec;
 }
 
-/* ---- Light theme: same tokens, light values ----
-   Higher specificity than the .ide backfill above, so every token
-   flips without touching component rules. */
+/* ---- Light theme: KryomCode Professional Light ----
+   Same token names as the dark authority in tokens.css; every color
+   token consumed anywhere must appear here (enforced by
+   theme-tokens.test.ts). Higher specificity than the dark blocks, so
+   every token flips without touching component rules. */
 html[data-theme='light'] .ide {
-  --kc-bg: #ffffff;
-  --kc-panel: #f3f3f5;
-  --kc-panel-alt: #ececee;
-  --kc-panel-deep: #e9e9ed;
-  --kc-border: #d8d8de;
-  --kc-border-soft: #e4e4e9;
-  --kc-text: #1e1e22;
-  --kc-text-dim: #4c4c55;
-  --kc-text-faint: #7c7c87;
-  --kc-text-faint-soft: #a8a8b2;
-  --kc-accent: #6455d6;
+  --kc-bg: #f2f2f5;
+  --kc-sidebar: #ececf0;
+  --kc-editor: #ffffff;
+  --kc-panel: #ffffff;
+  --kc-panel-alt: #ececf0;
+  --kc-panel-deep: #ffffff;
+  --kc-raised: #ffffff;
+  --kc-input: #ffffff;
+  --kc-well: #f1f1f4;
+  --kc-strip: #e9e9ef;
+  --kc-tint: #efedfd;
+  --kc-tint-border: #d3cdf7;
+  --kc-text: #191a20;
+  --kc-text-dim: #4e4e59;
+  --kc-text-faint: #6e6e78;
+  --kc-text-faint-soft: #6e6e78;
+  --kc-text-ghost: #a6a6b0;
+  --kc-on-accent: #ffffff;
+  --kc-border: #d9d9e0;
+  --kc-border-soft: #e6e6eb;
+  --kc-border-strong: #c4c4cd;
+  --kc-input-border: #c9c9d1;
+  --kc-btn-border: #d0d0d7;
+  --kc-accent: #5f4fd6;
   --kc-accent-dim: #6556c8;
-  --kc-accent-soft: #5b4cc9;
-  --kc-accent-btn: #5f4fc4;
+  --kc-accent-soft: #4a3fa8;
+  --kc-accent-btn: #5f4fd6;
+  --kc-ai: #0b5fff;
+  --kc-ai-deep: #004fc4;
+  --kc-link: #0b5fff;
+  --kc-info: #0b5fff;
+  --kc-info-bg: #e8f0fe;
+  --kc-info-border: #bfd6fa;
   --kc-ok: #1a7f4b;
+  --kc-ok-soft: #146c3e;
   --kc-ok-bg: #e2f4e9;
   --kc-ok-border: #bfe3cb;
-  --kc-ok-soft: #146c3e;
   --kc-warn: #8f6200;
+  --kc-warn-bright: #a86a00;
   --kc-warn-bg: #faf0d7;
   --kc-warn-border: #e6d18a;
-  --kc-warn-bright: #a86a00;
-  --kc-risk-high: #d92d20;
   --kc-danger: #d92d20;
   --kc-danger-soft: #b42318;
   --kc-danger-bg: #fde8e8;
@@ -93,46 +80,30 @@ html[data-theme='light'] .ide {
   --kc-danger-btn: #d92d20;
   --kc-danger-btn-hover: #b42318;
   --kc-error: #d92d20;
+  --kc-risk-high: #d92d20;
   --kc-btn: #f0f0f3;
   --kc-btn-hover: #e4e4e9;
-  --kc-btn-border: #d0d0d7;
-  --kc-focus: #6455d6;
-  --kc-input: #ffffff;
-  --kc-input-border: #c9c9d1;
-  --kc-link: #0b5fff;
-  --kc-strip: #e8e8ec;
-  --kc-well: #f1f1f4;
-  --kc-tint: #efedfd;
-  --kc-tint-border: #d3cdf7;
+  --kc-focus: #5f4fd6;
+  --kc-selection: rgba(95, 79, 214, 0.22);
+  --kc-hover: rgba(20, 20, 40, 0.05);
+  --kc-scroll: #c2c2ca;
   --kc-quote: #b9b9c4;
-  --kc-scroll: #c6c6cd;
-  --kc-on-accent: #ffffff;
+  --kc-disabled-fg: #a6a6b0;
+  --kc-disabled-bg: #f0f0f3;
+  --kc-disabled-border: #d9d9e0;
 }
 
-/* ---- Light theme: Meta layer tokens (meta-ai.css keys off
-   :root, so this html-level rule wins by specificity). ---- */
-html[data-theme='light'] {
-  --kryom-bg: #ffffff;
-  --kryom-surface: #f3f3f5;
-  --kryom-raised: #ececee;
-  --kryom-border: #d8d8de;
-  --kryom-border-soft: #e4e4e9;
-  --kryom-text: #1e1e22;
-  --kryom-text-dim: #4c4c55;
-  --kryom-muted: #7c7c87;
-  --kryom-accent: #6455d6;
-  --kryom-meta: #0b5fff;
-  --kryom-meta-deep: #004fc4;
-  --kryom-ok: #1a7f4b;
-  --kryom-warn: #8f6200;
-  --kryom-error: #d92d20;
-}
+/* ---- Legacy Meta-layer light block: REMOVED (Phase 1). The
+   --kryom-* names now resolve through the html:root aliases in
+   tokens.css, which follow the active theme automatically. ---- */
 
 /* ---- Light fixes for hardcoded dark-only colors ----
    app.css still hardcodes a few hex colors that predate the token
    pass (white text, #c9cad5 secondary text, #101014 code wells).
    These grouped overrides keep light mode readable until those
-   lines are tokenized (tracked alongside the backfill TODO above).
+   lines are tokenized. The Phase 1 refinement layer in tokens.css
+   repairs the same leaks for both themes at lower specificity, so
+   both layers agree through the shared tokens.
    White-on-accent cases (primary/danger buttons, brand marks,
    switch knob) intentionally have NO override: white stays correct
    on the violet/red fills in both themes. */
@@ -149,7 +120,7 @@ html[data-theme='light'] .ide .md-heading,
 html[data-theme='light'] .ide .dialog h2,
 html[data-theme='light'] .ide .git-file:hover,
 html[data-theme='light'] .ide .title-brand,
-html[data-theme='light'] .ide .title-mode-btn.active,
+html[data-theme='light'] .ide .segment.active,
 html[data-theme='light'] .ide .activity-btn.active,
 html[data-theme='light'] .ide .mini-btn:hover:not(:disabled),
 html[data-theme='light'] .ide .connect-name,

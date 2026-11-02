@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { kryom, errorMessage, isCancelError } from '../api/kryom'
 import { saveAgentDraft, loadAgentDraft } from '../utils/session-restore'
-import { diffLines } from '../utils/diff'
+import { DiffView } from './agent/DiffView'
 import { baseName } from '../utils/paths'
+import { copyText } from '../utils/clipboard'
 import { useDialogs } from './dialogs'
 import { AiKeyNotice } from './AiKeyNotice'
 
@@ -141,7 +142,10 @@ function formatRepairMs(valueMs: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
-function EditDiff({ oldText, newText }: { oldText: string; newText: string }) {
+/* Phase C: EditDiff was consolidated into the shared hunk-grouped
+   DiffView in ./agent/DiffView (used here and by AgentWorkspace).
+   The original implementation is preserved below for reference.
+function EditDiffRetired({ oldText, newText }: { oldText: string; newText: string }) {
   const { lines, truncated } = diffLines(oldText, newText)
   const shown = lines.slice(0, 300)
 
@@ -162,6 +166,7 @@ function EditDiff({ oldText, newText }: { oldText: string; newText: string }) {
   )
 }
 
+End of retired EditDiff reference. */
 // Provenance-labelled view of the exact context snapshot sent with
 // a planning request. `live` snapshots (from the tracked plan) carry
 // re-checked freshness; proposal snapshots show recorded values.
@@ -854,15 +859,15 @@ export function AgentPanel(props: AgentPanelProps) {
     }
   }
 
-  // Diagnostics share the terminal process registry, so Stop uses
-  // the same kill-all cancel as the terminal panel. The run then
-  // resolves cancelled and records a cancelled report normally.
+  // Agent verification runs carry the 'agent' origin, so Stop uses
+  // the scoped agent cancel channel. The run then resolves
+  // cancelled and records a cancelled report normally.
   function stopVerification() {
     if (!verifying) {
       return
     }
 
-    kryom().cancelCommand().catch(() => undefined)
+    kryom().cancelAgentVerification().catch(() => undefined)
   }
 
   function stopPlanning() {
@@ -1175,7 +1180,7 @@ export function AgentPanel(props: AgentPanelProps) {
     await moveTrackedStep('verify', 'in_progress')
 
     try {
-      const result = await kryom().runDiagnostics({ command })
+      const result = await kryom().runDiagnostics({ command, source: 'agent' })
 
       setVerifyResult(result)
 
@@ -1560,7 +1565,7 @@ export function AgentPanel(props: AgentPanelProps) {
 
   async function copyCommand(command: string, index: number) {
     try {
-      await navigator.clipboard.writeText(command)
+      if (!(await copyText(command))) throw new Error('clipboard write failed')
       setCopied(index)
       setTimeout(() => setCopied(null), 1500)
     } catch {
@@ -1936,7 +1941,7 @@ export function AgentPanel(props: AgentPanelProps) {
                         This file will be deleted if you approve this edit.
                       </p>
                     ) : edit.action === 'modify' && oldContents[key] !== undefined ? (
-                      <EditDiff
+                      <DiffView
                         oldText={oldContents[key]}
                         newText={edit.content ?? ''}
                       />

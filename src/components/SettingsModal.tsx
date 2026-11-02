@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react'
 import { kryom, errorMessage } from '../api/kryom'
 import { SUPPORTED_LOCALES, localeLabel, setLocale, useLocale } from '../i18n'
 import { ProviderSettings } from './ProviderSettings'
+import { ProfilePanel } from './ProfilePanel'
 
-export type SettingsSection = 'general' | 'providers'
+export type SettingsSection = 'general' | 'providers' | 'account'
 
 export interface SettingsModalProps {
   open: boolean
@@ -16,16 +17,27 @@ export interface SettingsModalProps {
   onFontSizeChange: (size: number) => void
   theme: 'dark' | 'light'
   onThemeChange: (theme: 'dark' | 'light') => void
+  // D2 terminal renderer controls. Absent = rows hidden.
+  terminalFontSize?: number
+  onTerminalFontSizeChange?: (size: number) => void
+  terminalRenderer?: 'xterm' | 'pre'
+  onTerminalRendererChange?: (renderer: 'xterm' | 'pre') => void
   autoSave: boolean
   onToggleAutoSave: () => void
   panelLeftWidth: number
   panelBottomHeight: number
   onResetPanels: () => void
+  accountWorkspaceRoot?: string | null
+  accountModel?: string
+  accountSummary?: KryomWorkspaceSummary | null
+  onOpenAbout?: () => void
 }
 
 const MODELS = ['muse-spark-1.3', 'muse-wonder-1.0'] as const
 const FONT_MIN = 10
 const FONT_MAX = 24
+const TERMINAL_FONT_MIN = 11
+const TERMINAL_FONT_MAX = 16
 
 export function SettingsModal(props: SettingsModalProps) {
   const { locale, t } = useLocale()
@@ -120,10 +132,29 @@ export function SettingsModal(props: SettingsModalProps) {
           >
             PROVIDERS
           </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={section === 'account'}
+            className={section === 'account' ? 'panel-tab active' : 'panel-tab'}
+            onClick={() => setSection('account')}
+          >
+            ACCOUNT
+          </button>
         </div>
 
         {section === 'providers' && (
           <ProviderSettings onStatus={props.onStatus} />
+        )}
+
+        {section === 'account' && (
+          <ProfilePanel
+            workspaceRoot={props.accountWorkspaceRoot ?? null}
+            defaultModel={props.accountModel ?? props.initial.defaultModel}
+            summary={props.accountSummary ?? null}
+            onOpenSettings={() => setSection('general')}
+            onOpenAbout={props.onOpenAbout ?? (() => undefined)}
+          />
         )}
 
         {section === 'general' && (
@@ -209,6 +240,95 @@ export function SettingsModal(props: SettingsModalProps) {
           </div>
         </div>
 
+        {props.terminalFontSize !== undefined &&
+          props.onTerminalFontSizeChange && (
+            <div className="settings-row">
+              <span id="settings-terminal-font-label">
+                Terminal font size
+              </span>
+              <div
+                className="stepper"
+                role="group"
+                aria-labelledby="settings-terminal-font-label"
+              >
+                <button
+                  type="button"
+                  className="mini-btn"
+                  onClick={() =>
+                    props.onTerminalFontSizeChange?.(
+                      Math.max(
+                        TERMINAL_FONT_MIN,
+                        (props.terminalFontSize ?? TERMINAL_FONT_MIN) - 1
+                      )
+                    )
+                  }
+                  disabled={props.terminalFontSize <= TERMINAL_FONT_MIN}
+                  aria-label="Decrease terminal font size"
+                >
+                  −
+                </button>
+                <span aria-live="polite">{props.terminalFontSize}px</span>
+                <button
+                  type="button"
+                  className="mini-btn"
+                  onClick={() =>
+                    props.onTerminalFontSizeChange?.(
+                      Math.min(
+                        TERMINAL_FONT_MAX,
+                        (props.terminalFontSize ?? TERMINAL_FONT_MIN) + 1
+                      )
+                    )
+                  }
+                  disabled={props.terminalFontSize >= TERMINAL_FONT_MAX}
+                  aria-label="Increase terminal font size"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          )}
+
+        {props.terminalRenderer !== undefined &&
+          props.onTerminalRendererChange && (
+            <div className="settings-row">
+              <span id="settings-terminal-renderer-label">
+                Terminal output
+              </span>
+              <div
+                className="segmented"
+                role="group"
+                aria-labelledby="settings-terminal-renderer-label"
+              >
+                <button
+                  type="button"
+                  className={
+                    props.terminalRenderer === 'xterm'
+                      ? 'segment active'
+                      : 'segment'
+                  }
+                  aria-pressed={props.terminalRenderer === 'xterm'}
+                  onClick={() =>
+                    props.onTerminalRendererChange?.('xterm')
+                  }
+                >
+                  Terminal
+                </button>
+                <button
+                  type="button"
+                  className={
+                    props.terminalRenderer === 'pre'
+                      ? 'segment active'
+                      : 'segment'
+                  }
+                  aria-pressed={props.terminalRenderer === 'pre'}
+                  onClick={() => props.onTerminalRendererChange?.('pre')}
+                >
+                  Plain text
+                </button>
+              </div>
+            </div>
+          )}
+
         <div className="settings-row">
           <span id="settings-theme-label">Appearance</span>
           <div
@@ -234,19 +354,6 @@ export function SettingsModal(props: SettingsModalProps) {
             </button>
           </div>
         </div>
-
-        <div className="settings-row">
-          <span style={{ display: 'none' }}>Theme</span>{/* TODO: delete this dead row once multi-line edits are possible; Appearance above is the live toggle. */}
-          <select
-            value="dark" style={{ display: 'none' }}
-            disabled
-            title="Light theme is not implemented yet"
-            aria-label="Theme (dark only for now)"
-          >
-            <option value="dark">Dark</option>
-          </select>
-        </div>
-
 
         <div className="settings-row">
           <span>{t('settings.language')}</span>
@@ -297,7 +404,7 @@ export function SettingsModal(props: SettingsModalProps) {
 
         <div className="dialog-actions">
           <button className="secondary-button" onClick={props.onClose}>
-            {section === 'providers' ? 'Close' : 'Cancel'}
+            {section === 'general' ? 'Cancel' : 'Close'}
           </button>
           {section === 'general' && (
             <button

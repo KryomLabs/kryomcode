@@ -1,0 +1,368 @@
+/* KryomCode unified design tokens (Phase 1). Single source of truth
+   for surfaces, text, accents, status, borders, fonts, radii, spacing,
+   elevation, and motion. Imported FIRST in main.tsx; every rule below
+   carries higher specificity than the legacy blocks it supersedes
+   (html:root beats :root, html .ide beats .ide), so values win
+   regardless of import order. Legacy value blocks in app.css /
+   meta-ai.css are frozen fallbacks — never extend them; change values
+   here (dark) and in theme.css (light) instead. */
+
+/* ---- Global primitives (theme-independent) + legacy alias shim ----
+   The --kryom-* namespace is preserved as pure aliases so existing
+   Meta-layer rules keep working while resolving to the unified graph.
+   No new code may consume var(--kryom-*); see theme-tokens.test.ts. */
+html:root {
+  --kc-font-ui: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --kc-font-mono: 'JetBrains Mono Variable', 'Cascadia Code', Consolas, monospace;
+  font-family: var(--kc-font-ui);
+
+  /* Type scale: weight + size/leading; pair with a font stack, e.g.
+     font: var(--kc-text-14) var(--kc-font-ui); */
+  --kc-text-10: 600 10px/1.4;
+  --kc-text-11: 500 11px/1.45;
+  --kc-text-12: 450 12px/1.5;
+  --kc-text-13: 450 13px/1.55;
+  --kc-text-14: 450 14px/1.6;
+  --kc-text-16: 600 16px/1.4;
+  --kc-text-20: 650 20px/1.3;
+  --kc-mono-11: 450 11px/1.6;
+  --kc-mono-12: 450 12px/1.65;
+  --kc-mono-13: 450 13px/1.7;
+  --kc-tracking-wide: 0.06em;
+  --kc-tracking-tight: -0.01em;
+
+  /* Radius scale: the only radii in the product. */
+  --kc-radius-s: 4px;
+  --kc-radius-m: 6px;
+  --kc-radius-l: 8px;
+  --kc-radius-xl: 12px;
+  --kc-radius-pill: 999px;
+
+  /* Spacing scale. */
+  --kc-space-xs: 4px;
+  --kc-space-sm: 8px;
+  --kc-space-md: 12px;
+  --kc-space-lg: 16px;
+  --kc-space-xl: 24px;
+  --kc-space-2xl: 32px;
+
+  /* Elevation (dark defaults; light overrides below). */
+  --kc-shadow-menu: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --kc-shadow-dialog: 0 16px 48px rgba(0, 0, 0, 0.5);
+
+  /* Layering + motion. */
+  --kc-z-sticky: 10;
+  --kc-z-overlay: 50;
+  --kc-z-dialog: 60;
+  --kc-z-tooltip: 70;
+  --kc-motion-fast: 120ms;
+  --kc-motion-base: 180ms;
+
+  /* Legacy Meta-layer aliases. Values resolve through the active
+     theme automatically; do not redeclare per theme. */
+  --kryom-bg: var(--kc-editor);
+  --kryom-surface: var(--kc-panel);
+  --kryom-raised: var(--kc-raised);
+  --kryom-border: var(--kc-border);
+  --kryom-border-soft: var(--kc-border-soft);
+  --kryom-text: var(--kc-text);
+  --kryom-text-dim: var(--kc-text-dim);
+  --kryom-muted: var(--kc-text-faint);
+  --kryom-accent: var(--kc-accent);
+  --kryom-meta: var(--kc-ai);
+  --kryom-meta-deep: var(--kc-ai-deep);
+  --kryom-ok: var(--kc-ok);
+  --kryom-warn: var(--kc-warn);
+  --kryom-error: var(--kc-danger);
+  --kryom-radius: var(--kc-radius-m);
+  --kryom-gap: var(--kc-space-sm);
+  --kryom-font: var(--kc-font-ui);
+  --kryom-mono: var(--kc-font-mono);
+}
+
+/* ---- KryomCode Premium Dark (authoritative values) ---- */
+html .ide {
+  --kc-bg: #0e0f13;
+  --kc-sidebar: #14151b;
+  --kc-editor: #101116;
+  --kc-panel: #17181f;
+  --kc-panel-alt: #14151b;
+  --kc-panel-deep: #121319;
+  --kc-raised: #1e1f29;
+  --kc-input: #121318;
+  --kc-well: #0e0f13;
+  --kc-strip: #1b1c26;
+  --kc-tint: #232139;
+  --kc-tint-border: #3b3860;
+
+  --kc-text: #e7e7ec;
+  --kc-text-dim: #b9b9c6;
+  --kc-text-faint: #8e8e9b;
+  --kc-text-faint-soft: #8e8e9b;
+  --kc-text-ghost: #6b6b78;
+  --kc-on-accent: #ffffff;
+
+  --kc-border: #26272f;
+  --kc-border-soft: #1f2027;
+  --kc-border-strong: #34353f;
+  --kc-input-border: #3b3b46;
+  --kc-btn-border: #3b3b46;
+
+  --kc-accent: #8b7cff;
+  --kc-accent-dim: #6556c8;
+  --kc-accent-soft: #c4b5fd;
+  --kc-accent-btn: #6556c8;
+  --kc-ai: #2e9bff;
+  --kc-ai-deep: #1e7fe0;
+  --kc-link: #7aa8ff;
+  --kc-info: #7aa8ff;
+  --kc-info-bg: #16283f;
+  --kc-info-border: #24466e;
+
+  --kc-ok: #7ee2a8;
+  --kc-ok-soft: #a9efc5;
+  --kc-ok-bg: #1d3a2a;
+  --kc-ok-border: #2e5c3f;
+  --kc-warn: #e8c874;
+  --kc-warn-bright: #fbbf24;
+  --kc-warn-bg: #3d3220;
+  --kc-warn-border: #66592c;
+  --kc-danger: #ff8f9a;
+  --kc-danger-soft: #f1aeb5;
+  --kc-danger-bg: #3d2226;
+  --kc-danger-border: #6b2c36;
+  --kc-danger-btn: #b2424e;
+  --kc-danger-btn-hover: #c2525f;
+  --kc-error: #ff7a93;
+  --kc-risk-high: #ff7a93;
+
+  --kc-btn: #24242c;
+  --kc-btn-hover: #33333e;
+  --kc-focus: #8b7cff;
+  --kc-selection: rgba(139, 124, 255, 0.28);
+  --kc-hover: rgba(255, 255, 255, 0.05);
+  --kc-scroll: #3e3f4a;
+  --kc-quote: #55555f;
+
+  --kc-disabled-fg: #6b6b78;
+  --kc-disabled-bg: #1a1b21;
+  --kc-disabled-border: #26272f;
+}
+
+/* ---- Light-only global adjustments (colors live in theme.css) ---- */
+html[data-theme='light'] {
+  --kc-shadow-menu: 0 8px 24px rgba(20, 20, 40, 0.12);
+  --kc-shadow-dialog: 0 16px 48px rgba(20, 20, 40, 0.16);
+}
+
+/* ================= Phase 1 refinement layer =================
+   Token-driven application of the type scale, radius scale, mono
+   stack, and hardcoded-color repairs. Higher specificity than the
+   legacy rules; values resolve through the active theme. */
+
+html .ide ::selection {
+  background: var(--kc-selection);
+}
+
+html .ide button:focus-visible,
+html .ide input:focus-visible,
+html .ide select:focus-visible,
+html .ide textarea:focus-visible,
+html .ide summary:focus-visible,
+html .ide [tabindex]:focus-visible {
+  outline: 2px solid var(--kc-focus);
+  outline-offset: 1px;
+}
+
+/* ---- Reading surfaces: 12px -> 14px ---- */
+html .ide .md-para,
+html .ide .md-list,
+html .ide .finding-body,
+html .ide .brief-body {
+  font: var(--kc-text-14) var(--kc-font-ui);
+}
+
+html .ide .md-quote {
+  font: var(--kc-text-14) var(--kc-font-ui);
+  font-style: italic;
+}
+
+html .ide .md-heading {
+  font: 650 13px/1.4 var(--kc-font-ui);
+  color: var(--kc-text);
+}
+
+/* ---- Mono stack unification (one code voice) ---- */
+html .ide pre,
+html .ide code,
+html .ide kbd,
+html .ide samp {
+  font-family: var(--kc-font-mono);
+}
+
+html .ide .terminal-output {
+  font: var(--kc-mono-13) var(--kc-font-mono);
+  color: var(--kc-text-dim);
+}
+
+html .ide .terminal-command,
+html .ide .plan-preview,
+html .ide .diff-view,
+html .ide .md-codeblock,
+html .ide .agent-run-output,
+html .ide .agent-run-command code,
+html .ide .output-log {
+  font-family: var(--kc-font-mono);
+}
+
+html .ide .md-codeblock,
+html .ide .plan-preview,
+html .ide .diff-view,
+html .ide .agent-run-output {
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+html .ide .md-code,
+html .ide .diagnostic-location,
+html .ide .shortcuts-row kbd {
+  font: var(--kc-mono-11) var(--kc-font-mono);
+}
+
+html .ide .agent-run-check-name {
+  font-family: var(--kc-font-mono);
+}
+
+/* ---- Hardcoded color repairs (both themes) ---- */
+html .ide .title-brand,
+html .ide .activity-btn.active,
+html .ide .segment.active,
+html .ide .panel-tab.active,
+html .ide .editor-tab.active,
+html .ide .discovery-head h1,
+html .ide .dialog h2,
+html .ide .connect-name,
+html .ide .profile-name {
+  color: var(--kc-text);
+}
+
+html .ide .icon-btn:hover:not(:disabled),
+html .ide .mini-btn:hover:not(:disabled),
+html .ide .file-row:hover,
+html .ide .file-row.selected,
+html .ide .tree-row-wrap.selected .file-row,
+html .ide summary.tree-row.selected,
+html .ide .git-file:hover,
+html .ide .tab-close:hover {
+  color: var(--kc-text);
+}
+
+html .ide .command-row code,
+html .ide .diagnostic-message,
+html .ide .status-toggle {
+  color: var(--kc-text-dim);
+}
+
+html .ide .md-code,
+html .ide .md-codeblock,
+html .ide .brief-body,
+html .ide .plan-preview,
+html .ide .diff-view,
+html .ide .command-row,
+html .ide .agent-run-command code {
+  background: var(--kc-well);
+}
+
+html .ide .ai-error code,
+html .ide .error-banner {
+  color: var(--kc-danger-soft);
+}
+
+/* ---- Radius scale application ---- */
+html .ide button,
+html .ide input,
+html .ide select,
+html .ide textarea {
+  border-radius: var(--kc-radius-m);
+}
+
+html .ide .chat-message,
+html .ide .terminal-entry .terminal-output {
+  border-radius: var(--kc-radius-l);
+}
+
+html .ide .dialog,
+html .ide .tab-context-menu {
+  border-radius: var(--kc-radius-xl);
+}
+
+html .ide .suggest-chip,
+html .ide .attach-chip,
+html .ide .switch {
+  border-radius: var(--kc-radius-pill);
+}
+
+html .ide .discovery-switch,
+html .ide .segmented {
+  border-radius: var(--kc-radius-m);
+}
+
+html .ide .segment {
+  border-radius: var(--kc-radius-s);
+}
+
+/* ---- Elevated surfaces ---- */
+html .ide .dialog {
+  background: var(--kc-raised);
+  border: 1px solid var(--kc-border);
+  box-shadow: var(--kc-shadow-dialog);
+}
+
+html .ide .tab-context-menu {
+  background: var(--kc-raised);
+  border: 1px solid var(--kc-border);
+  box-shadow: var(--kc-shadow-menu);
+}
+
+/* ---- Chrome typography ---- */
+html .ide .message-role {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: var(--kc-tracking-wide);
+}
+
+html .ide .statusbar {
+  font-size: 11px;
+}
+
+html .ide .output-time,
+html .ide .statusbar,
+html .ide .message-role {
+  font-variant-numeric: tabular-nums;
+}
+
+html .ide .discovery-head h1 {
+  font-size: 20px;
+  line-height: 1.3;
+}
+
+/* ---- Disabled states: tokens instead of bare opacity ---- */
+html .ide button:disabled {
+  opacity: 1;
+  color: var(--kc-disabled-fg);
+  background: var(--kc-disabled-bg);
+  border-color: var(--kc-disabled-border);
+  cursor: not-allowed;
+}
+
+/* ---- Reduced motion: single global kill-switch ---- */
+@media (prefers-reduced-motion: reduce) {
+  html .ide *,
+  html .ide *::before,
+  html .ide *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

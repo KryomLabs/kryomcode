@@ -4,6 +4,7 @@
 // existing validated filesystem IPC; this component only presents.
 import { useEffect, useRef, useState } from 'react'
 import { baseName, parentDir } from '../utils/paths'
+import { copyText } from '../utils/clipboard'
 import {
   FileIcon,
   FolderIcon,
@@ -31,6 +32,9 @@ export interface ExplorerProps {
   onNewFolder: (dir: string) => void
   onRename: (node: KryomNode) => void
   onDelete: (node: KryomNode) => void
+  // Copy-path result (Phase E): the host reports it on the status
+  // bar since the context menu has no feedback surface.
+  onCopyPath?: (path: string, copied: boolean) => void
 }
 
 interface RowProps {
@@ -261,9 +265,10 @@ export function Explorer(props: ExplorerProps) {
 
   async function copyPath(targetPath: string): Promise<void> {
     try {
-      await navigator.clipboard.writeText(targetPath)
+      if (!(await copyText(targetPath))) throw new Error('clipboard write failed')
+      props.onCopyPath?.(targetPath, true)
     } catch {
-      // Clipboard denial is silent: copying is auxiliary.
+      props.onCopyPath?.(targetPath, false)
     } finally {
       setMenu(null)
     }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { kryom, errorMessage, isCancelError } from '../api/kryom'
 import { classifyIntent } from './intent'
 import { AiKeyNotice } from './AiKeyNotice'
@@ -6,6 +6,7 @@ import { MarkdownLite } from './MarkdownLite'
 import { classifyAIError, type AIErrorKind } from './meta-timeline'
 import { useProviderModels } from '../hooks/useProviderModels'
 import { modelDisplayName } from '../utils/models'
+import { copyText } from '../utils/clipboard'
 
 interface ChatMessage {
   role: 'user' | 'assistant'
@@ -23,6 +24,9 @@ export interface AiChatProps {
   contextEnabled: boolean
   onStatus: (status: string) => void
   pendingPrompt?: { text: string; nonce: number } | null
+  // Welcome-composer attachments for the pending submit: merged into
+  // the conversation (capped, deduped) before the first request.
+  pendingAttachments?: { files: KryomContextFile[]; nonce: number } | null
   researchSessionId?: string | null
   onDetachResearch?: () => void
   onOpenConnections?: () => void
@@ -185,7 +189,11 @@ export function AiChat(props: AiChatProps) {
 
   // Escape stops the in-flight request. The composer is disabled
   // while loading, so this listens globally instead of on the field.
-  useEffect(() => {
+  // Layout effect (not passive): the listener must be attached before
+  // paint, so no keypress can land in the gap between the loading UI
+  // appearing and a passive effect flushing. Electron-only renderer,
+  // no SSR, so this is safe.
+  useLayoutEffect(() => {
     if (!loading) {
       return
     }
@@ -362,6 +370,7 @@ export function AiChat(props: AiChatProps) {
   }, [messages, restored, props.workspaceRoot])
 
   const consumedPromptNonce = useRef<number | null>(null)
+  const consumedAttachNonce = useRef<number | null>(null)
 
   useEffect(() => {
     const pending = props.pendingPrompt
@@ -376,19 +385,44 @@ export function AiChat(props: AiChatProps) {
 
     consumedPromptNonce.current = pending.nonce
 
+    // Merge welcome attachments first so they ride the initial
+    // request, not just later ones. Capped and deduped like manual
+    // attaches; trimming always reports, never silences.
+    let sendAttachments = attachments
+    const incoming = props.pendingAttachments
+
+    if (incoming && consumedAttachNonce.current !== incoming.nonce) {
+      consumedAttachNonce.current = incoming.nonce
+
+      const seen = new Set(attachments.map((file) => file.path))
+      const fresh = incoming.files.filter((file) => !seen.has(file.path))
+      const room = Math.max(0, MAX_ATTACHMENTS - attachments.length)
+
+      if (fresh.length > room) {
+        setAttachError(`Attachment limit reached (${MAX_ATTACHMENTS} files).`)
+      }
+
+      sendAttachments = [...attachments, ...fresh.slice(0, room)]
+      // The controlled setter takes an updater, not a value.
+      setAttachments(() => sendAttachments)
+    }
+
     if (loading) {
       setPrompt(pending.text)
       return
     }
 
     setPrompt('')
-    void sendWithText(pending.text.trim())
+    void sendWithText(pending.text.trim(), sendAttachments)
     // Consumes one welcome submit per nonce; sendWithText reads the
     // latest messages/model from this render's closure.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.pendingPrompt])
 
-  async function sendWithText(userPrompt: string) {
+  async function sendWithText(
+    userPrompt: string,
+    sendAttachments: KryomContextFile[] = attachments
+  ) {
     if (!userPrompt || loading) {
       return
     }
@@ -435,7 +469,7 @@ export function AiChat(props: AiChatProps) {
     const userMessage: ChatMessage = { role: 'user', content: userPrompt }
 
     try {
-      const context = withAttachments(await buildContext(), attachments)
+      const context = withAttachments(await buildContext(), sendAttachments)
       // A trailing history message identical to the prompt adds
       // nothing (retry pops the message but this closure still holds
       // it), so it is dropped from the history half of the request.
@@ -557,7 +591,7 @@ export function AiChat(props: AiChatProps) {
 
   async function copyMessage(content: string, index: number) {
     try {
-      await navigator.clipboard.writeText(content)
+      if (!(await copyText(content))) throw new Error('clipboard write failed')
       setCopiedMessage(index)
       setTimeout(() => setCopiedMessage(null), 1500)
     } catch {

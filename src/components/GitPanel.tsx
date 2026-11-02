@@ -5,12 +5,16 @@ import { useDialogs } from './dialogs'
 export interface GitPanelProps {
   workspaceRoot: string | null
   onStatus: (status: string) => void
+  // Opens a diffed file in the editor (Phase D1 workbench
+  // coordination). Absent = no Open action.
+  onOpenFile?: (path: string) => void
 }
 
 interface DiffView {
   title: string
   diff: string
   truncated: boolean
+  path: string | null
 }
 
 // Single-column source-control view sized for the 260px sidebar:
@@ -99,7 +103,7 @@ export function GitPanel(props: GitPanelProps) {
 
     try {
       const result = await kryom().gitDiff({ staged, path })
-      setDiff({ title, diff: result.diff, truncated: result.truncated })
+      setDiff({ title, diff: result.diff, truncated: result.truncated, path: path ?? null })
     } catch (e) {
       setDiff(null)
       setError(errorMessage(e))
@@ -469,6 +473,16 @@ export function GitPanel(props: GitPanelProps) {
           {diff && (
             <div className="git-diff">
               <strong>{diff.title}</strong>
+              {diff.path && props.onOpenFile && (
+                <button
+                  type="button"
+                  className="mini-btn"
+                  onClick={() => props.onOpenFile?.(diff.path as string)}
+                  title={`Open ${diff.path} in the editor`}
+                >
+                  Open file
+                </button>
+              )}
               {diff.truncated && (
                 <p className="muted">Diff truncated for display.</p>
               )}

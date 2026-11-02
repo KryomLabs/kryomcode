@@ -1,13 +1,14 @@
-// Extensible activity-bar navigation (Level 3C, Phase 1; Level 4
-// readiness). Builtin destinations register here at startup, and
-// future modules (extensions, skills, integrations) add their own via
+// Extensible activity-bar navigation (Level 3C, Phase A). Builtin
+// destinations register here at startup, and future modules
+// (extensions, skills, integrations) add their own via
 // registerActivity without touching the application shell. Areas:
-// sidebar views render in the sidebar, panel destinations toggle the
+// sidebar views render in the left sidebar, aside views render in
+// the right-side auxiliary dock, panel destinations toggle the
 // bottom panel, center destinations switch the center view, and
-// action destinations run a shell command (open Meta AI tab, open
-// settings) instead of selecting anything.
+// action destinations run a shell command instead of selecting
+// anything.
 
-export type ActivityArea = 'sidebar' | 'panel' | 'center' | 'action'
+export type ActivityArea = 'sidebar' | 'aside' | 'panel' | 'center' | 'action'
 
 export interface ActivityDefinition {
   id: string
@@ -19,7 +20,7 @@ export interface ActivityDefinition {
 }
 
 const ID_PATTERN = /^[a-z0-9-]{2,24}$/
-const AREAS: ActivityArea[] = ['sidebar', 'panel', 'center', 'action']
+const AREAS: ActivityArea[] = ['sidebar', 'aside', 'panel', 'center', 'action']
 
 const registry = new Map<string, ActivityDefinition>()
 let builtinsRegistered = false
@@ -115,7 +116,7 @@ const BUILTINS: ActivityDefinition[] = [
   {
     id: 'git',
     label: 'Source Control',
-    area: 'panel',
+    area: 'sidebar',
     order: 30,
     paths: [
       'M6 3v6a3 3 0 0 0 3 3h6a3 3 0 0 1 3 3v6',
@@ -126,8 +127,8 @@ const BUILTINS: ActivityDefinition[] = [
   },
   {
     id: 'run',
-    label: 'Run and Diagnostics',
-    area: 'panel',
+    label: 'Run and Debug',
+    area: 'sidebar',
     order: 40,
     paths: ['M7 4l13 8-13 8z', 'M7 4v16'],
   },
@@ -144,88 +145,37 @@ const BUILTINS: ActivityDefinition[] = [
     ],
   },
   {
-    id: 'tools',
-    label: 'Project Tools',
-    area: 'sidebar',
+    id: 'ai-workspace',
+    label: 'AI Workspace',
+    area: 'aside',
     order: 60,
-    hint: 'GitHub, documents, provider keys',
+    hint: 'Chat, Research, Build',
     paths: [
-      'M9 7V4M15 7V4',
-      'M7 7h10v4a5 5 0 0 1-10 0z',
-      'M12 16v5',
+      'M12 3l2.2 5.4L20 10l-4.4 3.8L17 20l-5-3.4L7 20l1.4-6.2L4 10l5.8-1.6z',
     ],
   },
   {
-    id: 'memory',
-    label: 'Memory',
-    area: 'sidebar',
+    id: 'knowledge',
+    label: 'Knowledge',
+    area: 'aside',
     order: 70,
+    hint: 'Documents, connections, memory',
     paths: [
-      'M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1z',
+      'M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z',
+      'M4 5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13',
+      'M9 8h6',
     ],
   },
   {
-    id: 'intel',
-    label: 'Intelligence',
-    area: 'center',
+    id: 'history',
+    label: 'History',
+    area: 'aside',
     order: 80,
-    hint: 'Project index, planning, specialists, quality',
+    hint: 'Recent threads and projects',
     paths: [
-      'M12 3v4M12 17v4M3 12h4M17 12h4',
-      'M12 12m-3.5 0a3.5 3.5 0 1 0 7 0 3.5 3.5 0 1 0-7 0',
-    ],
-  },
-  {
-    id: 'platform',
-    label: 'Platform',
-    area: 'center',
-    order: 90,
-    hint: 'Providers, skills, workflows, integrations, templates',
-    paths: [
-      'M12 3l9 5-9 5-9-5z',
-      'M3 13l9 5 9-5',
-    ],
-  },
-  {
-    id: 'agent',
-    label: 'Agent',
-    area: 'center',
-    order: 95,
-    hint: 'Autonomous coding agent runs',
-    paths: [
-      'M5 4h14v12H9l-4 4z',
-      'M9 9h6M9 12h4',
-    ],
-  },
-  {
-    id: 'ai',
-    label: 'Meta AI',
-    area: 'action',
-    order: 100,
-    hint: 'Open a Meta AI session tab',
-    paths: [
-      'M18.6 6.6c-2 0-3.4 1.2-4.5 2.7l-2.1 3.4-2.1-3.4C8.8 7.8 7.4 6.6 5.4 6.6a4.1 4.1 0 0 0 0 8.2c2 0 3.4-1.2 4.5-2.7l2.1-3.4 2.1 3.4c1.1 1.5 2.5 2.7 4.5 2.7a4.1 4.1 0 0 0 0-8.2z',
-    ],
-  },
-  {
-    id: 'home',
-    label: 'Welcome',
-    area: 'center',
-    order: 105,
-    hint: 'Welcome and recent projects',
-    paths: [
-      'M4 11l8-7 8 7',
-      'M6 9.5V20a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V9.5',
-    ],
-  },
-  {
-    id: 'account',
-    label: 'Account',
-    area: 'sidebar',
-    order: 110,
-    paths: [
-      'M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
-      'M4 21a8 8 0 0 1 16 0',
+      'M4 12a8 8 0 1 1 2.3 5.7',
+      'M4 12H2m2 0l2-2',
+      'M12 8v4l3 2',
     ],
   },
 ]

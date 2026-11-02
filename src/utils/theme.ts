@@ -4,6 +4,14 @@
 // default; the OS preference only decides the very first run.
 export type KryomTheme = 'dark' | 'light'
 
+// Preferred editor monospace stack. The bundled Fontsource variable
+// package registers exactly 'JetBrains Mono Variable' (offline);
+// Cascadia Code covers Windows Terminal-era systems and Consolas the
+// rest. Must stay in sync with --kc-font-mono in
+// src/styles/tokens.css.
+export const MONACO_FONT_FAMILY =
+  "'JetBrains Mono Variable', 'Cascadia Code', Consolas, monospace"
+
 const STORAGE_KEY = 'kryom.theme'
 
 export function getStoredTheme(): KryomTheme {
@@ -56,10 +64,10 @@ export function applyTheme(theme: KryomTheme): void {
   const meta = document.querySelector('meta[name="theme-color"]')
 
   if (meta) {
-    meta.setAttribute('content', theme === 'light' ? '#f4f4f6' : '#101114')
+    meta.setAttribute('content', theme === 'light' ? '#f2f2f5' : '#0e0f13')
   }
 }
 
-export function monacoTheme(theme: KryomTheme): 'vs' | 'vs-dark' {
-  return theme === 'light' ? 'vs' : 'vs-dark'
+export function monacoTheme(theme: KryomTheme): 'kryom-dark' | 'kryom-light' {
+  return theme === 'light' ? 'kryom-light' : 'kryom-dark'
 }

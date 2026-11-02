@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Editor from '@monaco-editor/react'
 import { detectLanguage } from '../utils/languages'
+import { MONACO_FONT_FAMILY, monacoTheme } from '../utils/theme'
 import { baseName, resolveAgainstRoot, samePath } from '../utils/paths'
 import {
   isCodeTab,
@@ -22,6 +23,7 @@ import {
 
 export interface EditorApi {
   revealLine: (line: number) => void
+  focus: () => void
   find: () => void
   replace: () => void
   expandSelection: () => void
@@ -56,6 +58,7 @@ interface MonacoMarkerData {
 
 interface MonacoEditorInstance {
   revealLineInCenter: (line: number) => void
+  focus: () => void
   setPosition: (position: { lineNumber: number; column: number }) => void
   addCommand: (keybinding: number, handler: () => void) => void
   getModel: () => MonacoTextModel | null
@@ -119,6 +122,8 @@ export interface EditorPanelProps {
   onNewMetaAI: () => void
   onRenameSession: (sessionId: string) => void
   onDeleteSession: (sessionId: string) => void
+  // Tab-strip copy-path result (Phase E). Absent = silent.
+  onCopyPath?: (path: string, copied: boolean) => void
   content: string
   dirty: boolean
   pendingLine: number | null
@@ -337,6 +342,7 @@ export function EditorPanel(props: EditorPanelProps) {
         editor.revealLineInCenter(safeLine)
         editor.setPosition({ lineNumber: safeLine, column: 1 })
       },
+      focus: () => editor.focus(),
       find: () => editor.trigger('menu', 'actions.find'),
       replace: () => editor.trigger('menu', 'editor.action.startFindReplaceAction'),
       expandSelection: () =>
@@ -408,7 +414,7 @@ export function EditorPanel(props: EditorPanelProps) {
         onNewMetaAI={props.onNewMetaAI}
         onRenameSession={props.onRenameSession}
         onDeleteSession={props.onDeleteSession}
-        onCopyPath={() => undefined}
+        onCopyPath={props.onCopyPath}
       />
 
       {codeTab !== null && (
@@ -474,13 +480,15 @@ export function EditorPanel(props: EditorPanelProps) {
             height="100%"
             path={codeTab.path}
             language={detectLanguage(baseName(codeTab.path))}
-            theme={props.theme === 'light' ? 'vs' : 'vs-dark'}
+            theme={monacoTheme(props.theme ?? 'dark')}
             value={props.content}
             onChange={(value) => props.onChange(value ?? '')}
             onMount={handleMount}
             options={{
               minimap: { enabled: false },
               fontSize: props.fontSize ?? 14,
+              fontFamily: MONACO_FONT_FAMILY,
+              fontLigatures: true,
               automaticLayout: true,
               scrollBeyondLastLine: false,
               readOnly: false,

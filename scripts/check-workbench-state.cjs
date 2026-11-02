@@ -252,9 +252,25 @@ function checkRegistry(registry) {
   const builtins = registry.listActivities()
   const ids = builtins.map((entry) => entry.id)
 
-  for (const id of ['explorer', 'search', 'git', 'run', 'extensions', 'tools', 'memory', 'intel', 'platform', 'ai', 'home', 'account']) {
+  for (const id of ['explorer', 'search', 'git', 'run', 'extensions', 'ai-workspace', 'knowledge', 'history']) {
     assert.ok(ids.includes(id), `missing builtin activity ${id}`)
   }
+
+  assert.equal(builtins.length, 8)
+
+  // Sidebar areas drive the left sidebar, aside areas the right dock.
+  const areas = Object.fromEntries(builtins.map((entry) => [entry.id, entry.area]))
+
+  assert.deepEqual(areas, {
+    explorer: 'sidebar',
+    search: 'sidebar',
+    git: 'sidebar',
+    run: 'sidebar',
+    extensions: 'sidebar',
+    'ai-workspace': 'aside',
+    knowledge: 'aside',
+    history: 'aside',
+  })
 
   // Sorted by order.
   const orders = builtins.map((entry) => entry.order)

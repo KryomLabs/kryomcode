@@ -77,6 +77,7 @@ interface KryomTerminalResult {
 }
 
 interface KryomRunningProcess {
+  origin: string
   id: string
   command: string
   startedAt: number
@@ -1786,6 +1787,10 @@ interface KryomAPI {
 
   cancelCommand: () => Promise<{ killed: number }>
 
+  cancelDiagnostics: () => Promise<{ killed: number }>
+
+  cancelAgentVerification: () => Promise<{ killed: number }>
+
   classifyCommand: (command: string) => Promise<{ warnings: string[] }>
 
   getTerminalStatus: () => Promise<{ running: KryomRunningProcess[] }>
@@ -2078,6 +2083,7 @@ interface KryomAPI {
 
   runDiagnostics: (payload: {
     command: string
+    source?: 'diagnostics' | 'agent'
   }) => Promise<KryomDiagnosticsResult>
 
   buildQualityReport: (payload?: {

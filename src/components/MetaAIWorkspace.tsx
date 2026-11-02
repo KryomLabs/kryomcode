@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { kryom, errorMessage, isCancelError } from '../api/kryom'
 import { modelDisplayName } from '../utils/models'
+import { copyText } from '../utils/clipboard'
 import {
   deriveSessionTitle,
   recordChangedFiles,
@@ -341,10 +342,16 @@ export function MetaAIWorkspace(props: MetaAIWorkspaceProps) {
   }
 
   useEffect(() => {
-    if (stickRef.current) {
-      messagesRef.current?.scrollTo({
-        top: messagesRef.current.scrollHeight,
-      })
+    // Phase E: same jsdom-safe follow as AiChat — scrollTo may be
+    // absent outside real browsers.
+    if (stickRef.current && messagesRef.current) {
+      if (typeof messagesRef.current.scrollTo === "function") {
+        messagesRef.current.scrollTo({
+          top: messagesRef.current.scrollHeight,
+        })
+      } else {
+        messagesRef.current.scrollTop = messagesRef.current.scrollHeight
+      }
     }
   }, [session.messages, sending])
 
@@ -626,7 +633,7 @@ export function MetaAIWorkspace(props: MetaAIWorkspaceProps) {
 
   async function copyMessage(content: string, index: number): Promise<void> {
     try {
-      await navigator.clipboard.writeText(content)
+      if (!(await copyText(content))) throw new Error('clipboard write failed')
       setCopiedMessage(index)
       setTimeout(() => setCopiedMessage(null), 1500)
     } catch {

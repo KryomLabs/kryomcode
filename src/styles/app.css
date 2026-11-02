@@ -601,7 +601,7 @@ section.editor-panel > .welcome {
   background: transparent;
   padding: 2px 6px;
   font-size: 11px;
-  color: #c9cad5;
+  color: var(--kc-text-dim);
 }
 
 .status-toggle:hover {
@@ -675,8 +675,8 @@ section.editor-panel > .welcome {
   overflow: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  color: #c9cad5;
-  font: 12px/1.7 Consolas, monospace;
+  color: var(--kc-text-dim);
+  font: 12px/1.7 var(--kc-font-mono);
 }
 
 /* Bottom dock with Terminal, Problems, Source Control, Output tabs */
@@ -1016,17 +1016,17 @@ section.editor-panel > .welcome {
 
 .md-code {
   padding: 1px 5px;
-  background: #101014;
+  background: var(--kc-well);
   border: 1px solid var(--kc-border);
   border-radius: 4px;
   color: var(--kc-text-dim);
-  font: 11px Consolas, monospace;
+  font: 11px var(--kc-font-mono);
   overflow-wrap: anywhere;
 }
 
 .md-codeblock {
   margin: 0 0 8px;
-  background: #101014;
+  background: var(--kc-well);
   border: 1px solid var(--kc-border);
   border-radius: 6px;
   overflow: hidden;
@@ -1060,7 +1060,7 @@ section.editor-panel > .welcome {
   max-height: 420px;
   overflow: auto;
   color: var(--kc-text);
-  font: 11px/1.6 Consolas, 'Courier New', monospace;
+  font: 11px/1.6 var(--kc-font-mono);
   white-space: pre;
   tab-size: 2;
 }
@@ -1093,7 +1093,7 @@ section.editor-panel > .welcome {
   max-height: 420px;
   overflow-y: auto;
   padding: 10px 12px;
-  background: #101014;
+  background: var(--kc-well);
   border: 1px solid var(--kc-border);
   border-radius: 6px;
 }
@@ -1156,9 +1156,9 @@ section.editor-panel > .welcome {
 }
 
 .ai-error code {
-  font-family: Consolas, monospace;
+  font-family: var(--kc-font-mono);
   font-size: 11px;
-  color: #fff;
+  color: inherit;
 }
 
 .notice-actions {
@@ -1402,11 +1402,11 @@ section.editor-panel > .welcome {
   padding: 8px;
   max-height: 220px;
   overflow: auto;
-  background: #101014;
+  background: var(--kc-well);
   border: 1px solid var(--kc-border);
   border-radius: 6px;
-  color: #c9cad5;
-  font: 11px/1.6 Consolas, monospace;
+  color: var(--kc-text-dim);
+  font: 11px/1.6 var(--kc-font-mono);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -1415,10 +1415,10 @@ section.editor-panel > .welcome {
   margin-top: 8px;
   max-height: 260px;
   overflow: auto;
-  background: #101014;
+  background: var(--kc-well);
   border: 1px solid var(--kc-border);
   border-radius: 6px;
-  font: 11px/1.6 Consolas, monospace;
+  font: 11px/1.6 var(--kc-font-mono);
 }
 
 .diff-line {
@@ -1446,6 +1446,41 @@ section.editor-panel > .welcome {
 .diff-gutter {
   flex-shrink: 0;
   user-select: none;
+}
+
+/* Phase C: hunk headers + line numbers for the shared DiffView. */
+.diff-hunk-header {
+  padding: 2px 8px;
+  color: var(--kc-accent-soft);
+  background: rgba(110, 120, 200, 0.1);
+  user-select: none;
+}
+
+.diff-hunk + .diff-hunk {
+  margin-top: 6px;
+}
+
+.diff-lineno {
+  flex-shrink: 0;
+  min-width: 3ch;
+  text-align: right;
+  color: var(--kc-text-faint);
+  user-select: none;
+}
+
+/* Phase C: bounded long-list paging + checkpoint restore row. */
+.bounded-list-more {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0 2px;
+}
+
+.agent-checkpoint-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
 
 .plan-commands {
@@ -1478,14 +1513,14 @@ section.editor-panel > .welcome {
   justify-content: space-between;
   gap: 8px;
   padding: 8px;
-  background: #101014;
+  background: var(--kc-well);
   border: 1px solid var(--kc-border);
   border-radius: 6px;
 }
 
 .command-row code {
-  color: #c9cad5;
-  font: 11px/1.5 Consolas, monospace;
+  color: var(--kc-text-dim);
+  font: 11px/1.5 var(--kc-font-mono);
   overflow-wrap: anywhere;
 }
 
@@ -1507,7 +1542,7 @@ section.editor-panel > .welcome {
   gap: 4px;
   font-size: 12px;
   line-height: 1.55;
-  color: #c9cad5;
+  color: var(--kc-text-dim);
   overflow-wrap: anywhere;
 }
 
@@ -1611,7 +1646,7 @@ section.bottom-tab-panel {
 
 .terminal-command {
   color: var(--kc-link);
-  font: 12px/1.6 Consolas, monospace;
+  font: 12px/1.6 var(--kc-font-mono);
   overflow-wrap: anywhere;
 }
 
@@ -1709,12 +1744,12 @@ section.bottom-tab-panel {
 .diagnostic-location {
   flex-shrink: 0;
   color: var(--kc-link);
-  font-family: Consolas, monospace;
+  font-family: var(--kc-font-mono);
   font-size: 11px;
 }
 
 .diagnostic-message {
-  color: #c9cad5;
+  color: var(--kc-text-dim);
   overflow-wrap: anywhere;
 }
 
@@ -2056,36 +2091,46 @@ html.kryom-resizing .resize-handle::after {
   white-space: nowrap;
 }
 
-/* Discovery mode switch: compact Chat/Research segmented control
-   in the title bar. No separate navigation bar. */
-.title-modes {
+/* Command-center entry: compact palette button in the title bar. */
+.title-palette-btn {
   display: inline-flex;
-  flex: none;
-  gap: 2px;
-  padding: 2px;
+  flex: 2;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 0;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 4px 14px;
   background: var(--kc-panel-deep);
   border: 1px solid var(--kc-border);
   border-radius: 7px;
-}
-
-.title-mode-btn {
-  padding: 3px 12px;
-  border: 1px solid transparent;
-  border-radius: 5px;
-  background: transparent;
   color: var(--kc-text-faint);
   font-size: 11px;
-  font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
 }
 
-.title-mode-btn:hover:not(.active) {
+.title-palette-btn:hover {
   color: var(--kc-text);
+  border-color: var(--kc-focus);
 }
 
-.title-mode-btn.active {
-  background: var(--kc-btn);
-  color: #fff;
+.title-palette-btn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.title-nav {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+}
+
+.title-nav .title-layout-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 /* ---- Shell: activity bar + sidebar + center ---- */
@@ -2104,6 +2149,7 @@ html.kryom-resizing .resize-handle::after {
   background: var(--kc-panel);
   border-right: 1px solid var(--kc-border);
   padding: 6px 0;
+  min-height: 0;
 }
 
 .activity-group {
@@ -2111,6 +2157,9 @@ html.kryom-resizing .resize-handle::after {
   flex-direction: column;
   align-items: stretch;
   gap: 2px;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .activity-btn {
@@ -2287,7 +2336,7 @@ html.kryom-resizing .resize-handle::after {
 }
 
 .connect-card code {
-  font-family: Consolas, monospace;
+  font-family: var(--kc-font-mono);
   font-size: 11px;
   color: var(--kc-text);
 }
@@ -2436,7 +2485,7 @@ html.kryom-resizing .resize-handle::after {
   min-height: 0;
   overflow-y: auto;
   padding: 6px 0 10px;
-  font-family: Consolas, monospace;
+  font-family: var(--kc-font-mono);
   font-size: 12px;
 }
 
@@ -2584,7 +2633,7 @@ html.kryom-resizing .resize-handle::after {
   border: 1px solid var(--kc-btn-border);
   border-radius: 4px;
   color: var(--kc-text);
-  font: 11px Consolas, monospace;
+  font: 11px var(--kc-font-mono);
   white-space: nowrap;
 }
 
@@ -2765,8 +2814,8 @@ html.kryom-resizing .resize-handle::after {
   background: #fff;
 }
 
-/* ---- Theme hook: dark is the only finished theme. A future light
-   theme overrides these same tokens under [data-theme="light"]. ---- */
+/* ---- Theme hook: both themes override the shared tokens (dark in
+   tokens.css, light in theme.css); component rules stay theme-free. ---- */
 
 /* ---- Subtle scrollbars ---- */
 .ide ::-webkit-scrollbar {
@@ -3065,7 +3114,12 @@ html.kryom-resizing .resize-handle::after {
   flex-direction: column;
   gap: 10px;
   padding: 12px 14px 20px;
-  min-height: 100%;
+  /* Phase E: the run console scrolls internally. Without a
+     constrained flex child + overflow, long output was clipped by
+     .tab-body (overflow hidden) with no scrollbar at all. */
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .agent-run-header {
@@ -3264,11 +3318,11 @@ html.kryom-resizing .resize-handle::after {
 
 .agent-run-command code {
   display: block;
-  background: #101014;
+  background: var(--kc-well);
   border: 1px solid var(--kc-border);
   border-radius: 6px;
   padding: 8px 10px;
-  font: 12px Consolas, monospace;
+  font: 12px var(--kc-font-mono);
   overflow-x: auto;
 }
 
@@ -3477,7 +3531,7 @@ html.kryom-resizing .resize-handle::after {
 }
 
 .agent-run-check-name {
-  font: 12px Consolas, monospace;
+  font: 12px var(--kc-font-mono);
   overflow-wrap: anywhere;
 }
 
@@ -3490,11 +3544,11 @@ html.kryom-resizing .resize-handle::after {
 
 .agent-run-output {
   margin: 0;
-  background: #101014;
+  background: var(--kc-well);
   border: 1px solid var(--kc-border);
   border-radius: 6px;
   padding: 8px 10px;
-  font: 11px/1.55 Consolas, monospace;
+  font: 11px/1.55 var(--kc-font-mono);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   max-height: 240px;
@@ -3524,4 +3578,214 @@ html.kryom-resizing .resize-handle::after {
   border: 1px solid var(--kc-warn);
   border-radius: 8px;
   padding: 8px 12px;
+}
+
+/* ---- Phase A: auxiliary dock, hub rows, discovery switch ---- */
+.aside {
+  width: 360px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--kc-panel);
+  border-left: 1px solid var(--kc-border);
+}
+
+.side-subhead {
+  margin: 12px 12px 4px;
+  color: var(--kc-text-faint);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.aside-hub {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  overflow-y: auto;
+}
+
+.hub-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--kc-text);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hub-row:hover {
+  background: var(--kc-panel-deep);
+  border-color: var(--kc-border);
+}
+
+.hub-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hub-hint {
+  flex: none;
+  font-size: 11px;
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hub-action .hub-label {
+  color: var(--kc-accent);
+  font-weight: 600;
+}
+
+.discovery-switch {
+  display: flex;
+  flex: none;
+  justify-content: center;
+  gap: 2px;
+  margin: 10px auto 0;
+  padding: 2px;
+  background: var(--kc-panel-deep);
+  border: 1px solid var(--kc-border);
+  border-radius: 7px;
+}
+
+.discovery-switch .segment {
+  padding: 3px 14px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--kc-text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.discovery-switch .segment:hover:not(.active) {
+  color: var(--kc-text);
+}
+
+.discovery-switch .segment.active {
+  background: var(--kc-btn);
+  color: #fff;
+}
+
+.status-pos {
+  white-space: nowrap;
+}
+
+@media (max-width: 1280px) {
+  .status-pos {
+    display: none;
+  }
+}
+
+/* Narrow desktop windows: the dock overlays instead of squeezing
+   the editor. Non-modal — Esc or the close button dismisses it. */
+@media (max-width: 1100px) {
+  .aside {
+    position: fixed;
+    top: var(--kc-titlebar-height);
+    right: 0;
+    bottom: var(--kc-statusbar-height);
+    z-index: 40;
+    box-shadow: var(--kc-shadow-menu);
+  }
+
+  .title-palette-btn span {
+    display: none;
+  }
+
+  .title-palette-btn {
+    flex: none;
+    padding: 4px 10px;
+  }
+}
+
+/* Phase D1 bottom panel: Problems count badge, maximize toggle,
+   Output source filter. All values resolve through --kc-* tokens. */
+.panel-tab-badge {
+  display: inline-block;
+  min-width: 18px;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: var(--kc-radius-pill);
+  background: var(--kc-accent-btn);
+  color: var(--kc-on-accent);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  letter-spacing: 0;
+}
+
+.bottom-tabs .bottom-maximize {
+  padding: 6px 10px;
+}
+
+.output-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--kc-text-faint);
+  font-size: 11px;
+}
+
+.output-filter select {
+  max-width: 140px;
+  padding: 2px 6px;
+  font-size: 11px;
+}
+
+/* Phase D2 xterm renderer: the host fills the terminal log column;
+   xterm paints its own background from the mapped theme. */
+.terminal-log-xterm {
+  padding: 0;
+}
+
+.terminal-cwd {
+  padding: 6px 12px 0;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.xterm-host {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.xterm-container {
+  flex: 1;
+  min-height: 0;
+  padding: 8px 0 8px 12px;
+}
+
+.xterm-container .xterm-viewport {
+  overflow-y: auto;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

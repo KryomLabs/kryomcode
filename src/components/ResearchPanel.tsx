@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { kryom, errorMessage } from '../api/kryom'
+import { copyText as copyToClipboard } from '../utils/clipboard'
 import { MarkdownLite } from './MarkdownLite'
 
 export interface ResearchPanelProps {
@@ -8,6 +9,9 @@ export interface ResearchPanelProps {
   onImplement: (session: KryomResearchSession) => void
   onAsk: (session: KryomResearchSession) => void
   pendingStart?: { objective: string; nonce: number } | null
+  // Welcome-composer model: initial pick for fresh mounts; the
+  // in-view picker stays authoritative afterwards.
+  defaultModel?: string
   // Meta AI session embedding (Level 3C): reports the viewed research
   // session so the session timeline can query real research steps.
   onSessionChange?: (sessionId: string | null) => void
@@ -63,7 +67,7 @@ function hostOf(url: string): string {
 export function ResearchPanel(props: ResearchPanelProps) {
   const [objective, setObjective] = useState('')
   const [depth, setDepth] = useState<KryomResearchDepth>('standard')
-  const [model, setModel] = useState('')
+  const [model, setModel] = useState(props.defaultModel ?? '')
   const [models, setModels] = useState<KryomProviderModelSummary[]>([])
   const [session, setSession] = useState<KryomResearchSession | null>(null)
   const [sessions, setSessions] = useState<KryomResearchSummary[]>([])
@@ -238,7 +242,7 @@ export function ResearchPanel(props: ResearchPanelProps) {
 
     try {
       const result = await kryom().handoffResearch({ id, target })
-      await navigator.clipboard.writeText(result.text)
+      if (!(await copyToClipboard(result.text))) throw new Error('clipboard write failed')
       setCopied(`handoff-${target}`)
       setTimeout(() => setCopied(null), 1500)
       props.onStatus(target === 'chat' ? 'Chat handoff copied' : 'Agent brief copied')
@@ -430,7 +434,7 @@ export function ResearchPanel(props: ResearchPanelProps) {
 
   async function copyText(text: string, key: string) {
     try {
-      await navigator.clipboard.writeText(text)
+      if (!(await copyToClipboard(text))) throw new Error('clipboard write failed')
       setCopied(key)
       setTimeout(() => setCopied(null), 1500)
     } catch {

@@ -6,6 +6,7 @@
 // tab scrolls into view. A context menu carries the tab actions.
 import { useEffect, useRef, useState } from 'react'
 import { baseName } from '../utils/paths'
+import { copyText } from '../utils/clipboard'
 import {
   isCodeTab,
   isExtensionTab,
@@ -28,7 +29,9 @@ export interface EditorTabsProps {
   onNewMetaAI: () => void
   onRenameSession?: (sessionId: string) => void
   onDeleteSession?: (sessionId: string) => void
-  onCopyPath?: (path: string) => void
+  // Tab-strip copy result (Phase E): success and denial both
+  // report so the host can confirm on the status bar.
+  onCopyPath?: (path: string, copied: boolean) => void
 }
 
 function tabLabel(
@@ -167,10 +170,10 @@ export function EditorTabs(props: EditorTabsProps) {
 
   async function copyPath(targetPath: string) {
     try {
-      await navigator.clipboard.writeText(targetPath)
-      props.onCopyPath?.(targetPath)
+      if (!(await copyText(targetPath))) throw new Error('clipboard write failed')
+      props.onCopyPath?.(targetPath, true)
     } catch {
-      // Clipboard denial is silent: copying is auxiliary.
+      props.onCopyPath?.(targetPath, false)
     } finally {
       setMenu(null)
     }

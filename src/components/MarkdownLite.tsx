@@ -1,4 +1,5 @@
 import { useState, type ReactElement, type ReactNode } from 'react'
+import { copyText } from '../utils/clipboard'
 
 // Dependency-free renderer for model and brief text. Supports fenced
 // code blocks (with Copy), headings, lists, quotes, inline code, and
@@ -516,7 +517,7 @@ function CodeBlock({
 
   async function copy() {
     try {
-      await navigator.clipboard.writeText(code)
+      if (!(await copyText(code))) throw new Error('clipboard write failed')
       setStatus('copied')
       setTimeout(() => setStatus('copy'), 1500)
     } catch {
