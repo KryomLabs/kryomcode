@@ -263,6 +263,7 @@ describe('ipc integration', () => {
       'git:verify',
       'git:clone',
       'diagnostics:run',
+      'diagnostics:cancel',
       'diagnostics:quality',
       'diagnostics:quality-get',
       'diagnostics:quality-list',
@@ -287,6 +288,7 @@ describe('ipc integration', () => {
       'agent:checkpoints',
       'agent:undo',
       'agent:cancel',
+      'agent:cancel-verification',
       'agent:track-plan',
       'agent:plans',
       'agent:plan-get',
@@ -885,6 +887,53 @@ describe('ipc integration', () => {
     const settled = await pending
 
     assert.equal(settled.cancelled, true)
+  })
+
+  it('cancels diagnostics and terminal scopes independently', async () => {
+    await ensureWorkspace()
+
+    const diagnosticsPending = call('diagnostics:run', {
+      command: 'node -e "setTimeout(() => {}, 30000)"',
+    })
+    const terminalPending = call(
+      'terminal:run',
+      'node -e "setTimeout(() => {}, 30000)"'
+    )
+
+    await waitFor(async () => {
+      const status = await call('terminal:status')
+
+      return (
+        status.running.some((entry) => entry.origin === 'diagnostics') &&
+        status.running.some((entry) => entry.origin === 'user-terminal')
+      )
+    })
+
+    const diagnosticsCancelled = await call('diagnostics:cancel')
+
+    assert.equal(diagnosticsCancelled.killed, 1)
+
+    const diagnosticsResult = await diagnosticsPending
+
+    assert.equal(diagnosticsResult.cancelled, true)
+
+    const status = await call('terminal:status')
+
+    assert.ok(
+      status.running.some((entry) => entry.origin === 'user-terminal')
+    )
+
+    // No agent runs are in flight: the agent channel reports zero and
+    // touches nothing.
+    const agentCancelled = await call('agent:cancel-verification')
+
+    assert.deepEqual(agentCancelled, { killed: 0 })
+
+    await call('terminal:cancel')
+
+    const terminalResult = await terminalPending
+
+    assert.equal(terminalResult.cancelled, true)
   })
 
   it('runs diagnostics and intelligence summaries through IPC', async () => {

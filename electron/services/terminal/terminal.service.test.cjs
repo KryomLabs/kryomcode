@@ -182,6 +182,149 @@ describe('terminal.service', () => {
     assert.equal(listRunningProcesses().length, 0)
   })
 
+describe('terminal origin-scoped cancellation', () => {
+  async function waitForRegistry(count, origins) {
+    const deadline = Date.now() + 10000
+
+    while (Date.now() < deadline) {
+      const listed = listRunningProcesses()
+
+      if (
+        listed.length >= count &&
+        (origins === undefined ||
+          origins.every((origin) => listed.some((entry) => entry.origin === origin)))
+      ) {
+        return listed
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    }
+
+    throw new Error('Timed out waiting for the process registry.')
+  }
+
+  it('cancels one origin while another origin keeps running', async () => {
+    const terminalRun = runCommand('node -e "setTimeout(() => {}, 30000)"', {
+      origin: 'user-terminal',
+    })
+    const agentRun = runCommand('node -e "setTimeout(() => {}, 30000)"', {
+      origin: 'agent',
+    })
+
+    await waitForRegistry(2, ['user-terminal', 'agent'])
+
+    const cancelled = cancelRunningProcesses('user-terminal')
+
+    assert.equal(cancelled.killed, 1)
+
+    const terminalResult = await terminalRun
+
+    assert.equal(terminalResult.cancelled, true)
+    assert.match(terminalResult.output, /Cancelled by user/)
+
+    // The agent run survived the terminal cancel: still registered,
+    // then cancelled through its own scope.
+    assert.ok(
+      listRunningProcesses().some((entry) => entry.origin === 'agent')
+    )
+
+    const agentCancelled = cancelRunningProcesses('agent')
+
+    assert.equal(agentCancelled.killed, 1)
+
+    const agentResult = await agentRun
+
+    assert.equal(agentResult.cancelled, true)
+    assert.equal(listRunningProcesses().length, 0)
+  })
+
+  it('lets an unaffected origin complete normally', async () => {
+    const slow = runCommand('node -e "setTimeout(() => {}, 30000)"', {
+      origin: 'diagnostics',
+    })
+
+    await waitForRegistry(1, ['diagnostics'])
+
+    // A terminal command starting and finishing while the diagnostics
+    // run is in flight is completely unaffected by it.
+    const quick = await runCommand('node -e "console.log(40 + 2)"', {
+      origin: 'user-terminal',
+    })
+
+    assert.equal(quick.exitCode, 0)
+    assert.equal(quick.cancelled, false)
+    assert.match(quick.output, /42/)
+    assert.ok(
+      listRunningProcesses().some((entry) => entry.origin === 'diagnostics')
+    )
+
+    cancelRunningProcesses('diagnostics')
+
+    const slowResult = await slow
+
+    assert.equal(slowResult.cancelled, true)
+    assert.equal(listRunningProcesses().length, 0)
+  })
+
+  it('isolates diagnostics cancellation from agent runs', async () => {
+    const diagnosticsRun = runCommand('node -e "setTimeout(() => {}, 30000)"', {
+      origin: 'diagnostics',
+    })
+    const agentRun = runCommand('node -e "setTimeout(() => {}, 30000)"', {
+      origin: 'agent',
+    })
+
+    await waitForRegistry(2, ['diagnostics', 'agent'])
+
+    assert.equal(cancelRunningProcesses('diagnostics').killed, 1)
+
+    const diagnosticsResult = await diagnosticsRun
+
+    assert.equal(diagnosticsResult.cancelled, true)
+    assert.ok(listRunningProcesses().some((entry) => entry.origin === 'agent'))
+
+    assert.equal(cancelRunningProcesses('agent').killed, 1)
+
+    const agentResult = await agentRun
+
+    assert.equal(agentResult.cancelled, true)
+    assert.equal(listRunningProcesses().length, 0)
+  })
+
+  it('normalizes unknown origins instead of throwing', async () => {
+    const pending = runCommand('node -e "setTimeout(() => {}, 30000)"', {
+      origin: 'bogus-origin',
+    })
+
+    const listed = await waitForRegistry(1)
+
+    assert.ok(listed.some((entry) => entry.origin === 'user-terminal'))
+
+    cancelRunningProcesses('user-terminal')
+
+    const result = await pending
+
+    assert.equal(result.cancelled, true)
+    assert.equal(listRunningProcesses().length, 0)
+  })
+
+  it('reports zero kills when cancelling an empty scope', async () => {
+    assert.deepEqual(cancelRunningProcesses('agent'), { killed: 0 })
+    assert.deepEqual(cancelRunningProcesses('diagnostics'), { killed: 0 })
+  })
+
+  it('cleans the registry after failed commands', async () => {
+    const result = await runCommand('node -e "process.exit(3)"', {
+      origin: 'agent',
+    })
+
+    assert.equal(result.exitCode, 3)
+    assert.equal(result.cancelled, false)
+    assert.equal(listRunningProcesses().length, 0)
+  })
+})
+
+  // Empty-registry repeat cancel closes out the terminal.service suite.
   it('tolerates repeated cancellation with an empty registry', async () => {
     assert.deepEqual(cancelRunningProcesses(), { killed: 0 })
 

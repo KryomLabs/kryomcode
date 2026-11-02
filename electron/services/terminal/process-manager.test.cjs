@@ -10,9 +10,139 @@ const {
   killProcessTree,
   listProcesses,
   markDetachedProcess,
+  killProcessesByOrigin,
+  normalizeOrigin,
+  PROCESS_ORIGINS,
   registerProcess,
   unregisterProcess,
 } = require('./process-manager.cjs')
+const {
+  cancelGitProcesses,
+} = require('../git/git.service.cjs')
+
+describe('process-origin-isolation', () => {
+  it('tags entries with a normalized origin', () => {
+    const ids = [
+      registerProcess({ kill: () => true }, { command: 'a', origin: 'diagnostics' }),
+      registerProcess({ kill: () => true }, { command: 'b' }),
+      registerProcess({ kill: () => true }, { command: 'c', origin: 'bogus-scope' }),
+    ]
+
+    try {
+      const byId = new Map(listProcesses().map((entry) => [entry.id, entry]))
+
+      assert.equal(byId.get(ids[0]).origin, 'diagnostics')
+      assert.equal(byId.get(ids[1]).origin, 'user-terminal')
+      assert.equal(byId.get(ids[2]).origin, 'user-terminal')
+      assert.deepEqual(PROCESS_ORIGINS, ['user-terminal', 'diagnostics', 'agent'])
+      assert.equal(normalizeOrigin('agent'), 'agent')
+      assert.equal(normalizeOrigin(undefined), 'user-terminal')
+      assert.equal(normalizeOrigin(null), 'user-terminal')
+    } finally {
+      for (const id of ids) {
+        unregisterProcess(id)
+      }
+    }
+  })
+
+  it('filters listings by origin', () => {
+    const terminal = registerProcess({ kill: () => true }, { command: 't', origin: 'user-terminal' })
+    const agent = registerProcess({ kill: () => true }, { command: 'g', origin: 'agent' })
+
+    try {
+      const onlyAgent = listProcesses({ origin: 'agent' })
+
+      assert.ok(onlyAgent.some((entry) => entry.id === agent))
+      assert.ok(!onlyAgent.some((entry) => entry.id === terminal))
+      assert.ok(onlyAgent.every((entry) => entry.origin === 'agent'))
+    } finally {
+      unregisterProcess(terminal)
+      unregisterProcess(agent)
+    }
+  })
+
+  it('kills only the requested origin', () => {
+    let terminalKilled = false
+    let agentKilled = false
+    const terminal = registerProcess(
+      { kill: () => { terminalKilled = true; return true } },
+      { command: 'term-run', origin: 'user-terminal' }
+    )
+    const agent = registerProcess(
+      { kill: () => { agentKilled = true; return true } },
+      { command: 'agent-check', origin: 'agent' }
+    )
+
+    try {
+      const result = killProcessesByOrigin('user-terminal')
+
+      assert.deepEqual(result, { killed: 1, origin: 'user-terminal' })
+      assert.equal(terminalKilled, true)
+      assert.equal(agentKilled, false)
+      assert.ok(!listProcesses().some((entry) => entry.id === terminal))
+      assert.ok(listProcesses().some((entry) => entry.id === agent))
+    } finally {
+      unregisterProcess(terminal)
+      unregisterProcess(agent)
+    }
+  })
+
+  it('reports zero kills for empty or unknown scopes without throwing', () => {
+    assert.deepEqual(killProcessesByOrigin('agent'), { killed: 0, origin: 'agent' })
+    assert.deepEqual(killProcessesByOrigin('no-such-origin'), { killed: 0, origin: 'user-terminal' })
+
+    const id = registerProcess({ kill: () => true }, { command: 'x', origin: 'diagnostics' })
+
+    try {
+      assert.deepEqual(killProcessesByOrigin('diagnostics'), { killed: 1, origin: 'diagnostics' })
+      assert.deepEqual(killProcessesByOrigin('diagnostics'), { killed: 0, origin: 'diagnostics' })
+    } finally {
+      unregisterProcess(id)
+    }
+  })
+
+  it('retains failed scoped kills for a later retry', () => {
+    const stubborn = { kill: () => false }
+    const id = registerProcess(stubborn, { command: 'stubborn', origin: 'agent' })
+
+    try {
+      assert.deepEqual(killProcessesByOrigin('agent'), { killed: 0, origin: 'agent' })
+      assert.ok(listProcesses().some((entry) => entry.id === id))
+      assert.deepEqual(killProcessesByOrigin('user-terminal'), { killed: 0, origin: 'user-terminal' })
+      assert.ok(listProcesses().some((entry) => entry.id === id))
+    } finally {
+      unregisterProcess(id)
+    }
+  })
+
+  it('ignores already-unregistered processes when cancelling a scope', () => {
+    const id = registerProcess({ kill: () => true }, { command: 'gone', origin: 'diagnostics' })
+
+    unregisterProcess(id)
+
+    assert.deepEqual(killProcessesByOrigin('diagnostics'), { killed: 0, origin: 'diagnostics' })
+  })
+
+  it('keeps the git registry independent from the shared registry', () => {
+    let sharedKilled = false
+    const id = registerProcess(
+      { kill: () => { sharedKilled = true; return true } },
+      { command: 'shared-run', origin: 'user-terminal' }
+    )
+
+    try {
+      // Git owns a private child set: cancelling git processes must
+      // never reach entries tracked here, whatever their origin.
+      const result = cancelGitProcesses()
+
+      assert.deepEqual(result, { killed: 0 })
+      assert.equal(sharedKilled, false)
+      assert.ok(listProcesses().some((entry) => entry.id === id))
+    } finally {
+      unregisterProcess(id)
+    }
+  })
+})
 
 describe('process-manager-tree-kill', () => {
   it('returns false for missing children', () => {

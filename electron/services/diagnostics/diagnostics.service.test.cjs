@@ -11,6 +11,7 @@ const { parseOutput } = require('./problem-parser.cjs')
 const {
   MAX_OBSERVED_RUNS,
   runDiagnostics,
+  cancelDiagnostics,
   getObservedRun,
 } = require('./diagnostics.service.cjs')
 
@@ -200,26 +201,52 @@ describe('diagnostics.service', () => {
     assert.equal(result.diagnosis.findings[0].confidence, 'high')
   })
 
-  it('cancels an in-flight run through the shared terminal registry', async () => {
+  it('cancels an in-flight run through its own origin scope', async () => {
     const {
       cancelRunningProcesses,
+      runCommand,
       listRunningProcesses,
     } = require('../terminal/terminal.service.cjs')
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'kryom-diag-'))
     await setWorkspaceRoot(dir)
 
-    // The UI Stop buttons (Problems panel, agent verification) kill
-    // through terminal:cancel, so the diagnostics run must resolve
-    // cancelled through that same registry path.
+    // Stop buttons are origin-scoped: Problems uses diagnostics:cancel
+    // and agent verification uses agent:cancel-verification, so a
+    // diagnostics run must resolve cancelled through its own channel
+    // while a concurrent terminal run survives.
     const pending = runDiagnostics('node -e "setTimeout(() => {}, 30000)"')
+    const terminalPending = runCommand('node -e "setTimeout(() => {}, 30000)"', {
+      origin: 'user-terminal',
+    })
     const deadline = Date.now() + 10000
 
-    while (listRunningProcesses().length === 0 && Date.now() < deadline) {
+    while (Date.now() < deadline) {
+      const origins = listRunningProcesses().map((entry) => entry.origin)
+
+      if (origins.includes('diagnostics') && origins.includes('user-terminal')) {
+        break
+      }
+
       await new Promise((resolve) => setTimeout(resolve, 10))
     }
 
-    assert.ok(listRunningProcesses().length > 0)
-    cancelRunningProcesses()
+    assert.ok(
+      listRunningProcesses().some((entry) => entry.origin === 'diagnostics')
+    )
+    // Scoped cancel: the diagnostics run dies here, while the
+    // concurrent terminal run is untouched until its own scope below.
+    const cancelled = cancelDiagnostics()
+
+    assert.equal(cancelled.killed, 1)
+    assert.ok(
+      listRunningProcesses().some((entry) => entry.origin === 'user-terminal')
+    )
+
+    cancelRunningProcesses('user-terminal')
+
+    const terminalResult = await terminalPending
+
+    assert.equal(terminalResult.cancelled, true)
 
     const result = await pending
 
