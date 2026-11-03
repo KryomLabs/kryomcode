@@ -26,7 +26,15 @@ function walk(items, visit) {
 
 describe('native menu', () => {
   it('keeps the eight top-level menus', () => {
-    const labels = build().map((entry) => entry.label)
+    const entries = build()
+    // macOS prepends the standard application menu. Electron fills in
+    // the app name at build time, so that template item is role-only
+    // by design — assert its presence, then the eight menus exactly.
+    const menus =
+      process.platform === 'darwin'
+        ? (assert.equal(entries[0].role, 'appMenu'), entries.slice(1))
+        : entries
+    const labels = menus.map((entry) => entry.label)
 
     assert.deepEqual(labels, [
       'File',
