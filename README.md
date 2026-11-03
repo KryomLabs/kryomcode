@@ -224,9 +224,7 @@ plus the Tasks panel with plan verification states.*
 *Model configuration — Settings picker with both Muse models; API
 keys are managed under Providers and never shown.*
 
-Two recommended categories are still missing and honestly absent
-(no placeholders): `04` multi-file diff review and `10`
-verification results. Nine supplementary shots (editor workspace,
+Nine supplementary shots (editor workspace,
 grounding honesty, error state, Intel runs, code answer,
 pending-approval honesty, research sources, cited brief, terminal
 output log) stay in `docs/images/` outside the gallery.
@@ -425,8 +423,7 @@ Verification record:
   Git, research-to-agent) — owner-reported, see
   [docs/SMOKE_TEST.md](docs/SMOKE_TEST.md).
 - Honest qualifications: Windows validated; macOS/Linux
-  configured-but-untested; screenshot categories `04` and `10`
-  still missing; CI matrix runs unrecorded. Full list:
+  configured-but-untested; CI matrix runs unrecorded. Full list:
   [docs/backend-limitations.md](docs/backend-limitations.md).
 
 Development commands:
