@@ -239,3 +239,26 @@ and are precisely scoped above for the owner pass. No FAIL was
 observed anywhere; nothing in this phase implicates the Phase
 2B fixes.
 
+## 10. Addendum — owner GUI pass 2026-11-03 (installed app)
+
+Date: 2026-11-03. The owner executed the seven-test manual GUI
+checklist against the installed v0.1.0 Windows application and
+reported all seven tests successful. Owner-reported results:
+
+- T1 Application Launch and Clean Close: PASS
+- T2 Open Project and Explorer: PASS
+- T3 Meta AI Chat, Model Picker and Stop: PASS
+- T4 Agent Plan, Approval, Apply and Undo: PASS
+- T5 Integrated Terminal: PASS
+- T6 Git Source Control: PASS
+- T7 Research to Agent Workflow: PASS
+
+Effect on this report: the §1 BLOCKED rows for launch/quit,
+Explorer, chat, agent plan/approve/apply/undo, terminal, Git, and
+the research-to-agent workflow are now covered by owner-reported
+manual evidence. The full 49-step checklist beyond T1–T7, and the
+exact-marker L3/L4 live-flow evidence (model IDs, providers, and
+markers were not recorded in the owner pass), remain outstanding
+per their original scope. No automated-suite claims are derived
+from this manual pass. No macOS/Linux testing is claimed.
+

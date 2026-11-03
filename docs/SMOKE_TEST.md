@@ -131,3 +131,34 @@ Copy this table into the release note or
 Steps 11, 13–14, and 16–17 are also pinned by automated backend tests
 (agent stale/rollback, diagnostics exit codes, conflict detection,
 `.kryom` ignore); the GUI pass proves the wiring, not just the units.
+
+## Owner-reported results — 2026-11-03 (installed Windows app)
+
+The owner executed the seven-test manual GUI checklist against the
+installed v0.1.0 Windows application on 2026-11-03 and reported
+all seven tests successful. These are owner-reported manual
+results, recorded here without embellishment.
+
+| Test | Description | Result |
+|---|---|---|
+| T1 | Application Launch and Clean Close | PASS |
+| T2 | Open Project and Explorer | PASS |
+| T3 | Meta AI Chat, Model Picker and Stop | PASS |
+| T4 | Agent Plan, Approval, Apply and Undo | PASS |
+| T5 | Integrated Terminal | PASS |
+| T6 | Git Source Control | PASS |
+| T7 | Research to Agent Workflow | PASS |
+
+Evidence qualifications (honest record, not guesses):
+
+- Execution timestamps: not recorded.
+- Model IDs used during T3/T7: not recorded.
+- Research provider names used in T7: not recorded.
+- Citation URLs, screenshots, log excerpts: not recorded.
+- These results describe the manual GUI pass only. They are not
+  CI results and do not replace the automated backend/renderer
+  suite records.
+- No macOS/Linux runtime testing is claimed; Windows only.
+
+The checklist procedure above remains the reference for future
+verification runs.
