@@ -18,12 +18,10 @@ Demo: [watch on YouTube](https://youtube.com/watch?v=M_3XuU4IjLg&si=ACuwD24IQLAM
 Entered in the Meta Global AI Developer Hackathon 2026, Indie
 Developer (Individual/Solo) track.
 
-> Prerelease: version 0.1.0 (MIT). No installers are published yet —
-> install from source or build one locally (see Installation).
-> A v0.1.0 Windows installer has been built, validated, and
-> install-tested, but the GitHub release is still a draft, so no
-> public download exists yet. Anything still pending is called out
-> in this README and in
+> Public release: [v0.1.0](https://github.com/KryomLabs/kryomcode/releases/tag/v0.1.0)
+> (MIT), published 2026-11-03 — the Windows x64 installer is
+> available on the release page (see Installation). Anything still
+> pending is called out in this README and in
 > [docs/backend-limitations.md](docs/backend-limitations.md).
 
 ## Demo video
@@ -299,7 +297,28 @@ src/app/App.tsx ──► kryom() ──► window.kryom ──► ipcMain.handl
 
 ## Installation and getting started
 
-No installers are published yet — install from source:
+The Windows x64 installer is publicly available on the
+[v0.1.0 release page](https://github.com/KryomLabs/kryomcode/releases/tag/v0.1.0)
+(published 2026-11-03):
+
+1. Download `KryomCode.Setup.0.1.0.exe` from the release page.
+2. Verify its SHA256 against the published value below.
+3. Run the installer. It is unsigned, so Windows SmartScreen may
+   show a warning on first run.
+4. Launch KryomCode from the Start Menu.
+
+Published installer (built from `main` @ `ef73f9f`,
+install-tested 2026-11-03): `KryomCode.Setup.0.1.0.exe`,
+149,896,128 bytes, SHA256
+`A033DED1638F1659E05CFA0ED02E66F2D73B97E0769AB9E345EB7A76640925DF`
+(built locally as `KryomCode Setup 0.1.0.exe`). Always verify
+your download before running it:
+
+```powershell
+Get-FileHash -Algorithm SHA256 KryomCode.Setup.0.1.0.exe
+```
+
+Install from source (developers):
 
 ```powershell
 git clone https://github.com/KryomLabs/kryomcode.git
@@ -323,17 +342,9 @@ npm run dist:linux    # Linux AppImage + deb (configured, untested)
 ```
 
 See [docs/BUILDING.md](docs/BUILDING.md) and
-[docs/RELEASING.md](docs/RELEASING.md). When public installers exist
-they will appear only on the
+[docs/RELEASING.md](docs/RELEASING.md). Future installers will
+appear only on the
 [Releases page](https://github.com/KryomLabs/kryomcode/releases).
-
-Validated Windows build (2026-11-03, from `main` @ `53d4922`):
-`KryomCode Setup 0.1.0.exe`, 149,891,800 bytes, SHA256
-`F62B7061A810A5B0924468F09D952A2C565CE97226BC34C52571BA582D51D948`
-— executable-format verified and install-tested by the owner.
-The v0.1.0 GitHub release is still a draft, so this file has no
-public download link yet. The installer is unsigned: Windows
-SmartScreen may show a warning on first run.
 
 Configure the key for development (no real secrets belong in docs
 or chat — values stay in your files only):
@@ -417,13 +428,18 @@ Verification record:
 - `tsc`, production `build`: green on the current tree;
   syntax, test-manifest, workbench, pack, and release gates
   green in Phase 2A.
+- CI run 35 on `main` @ `ef73f9f`
+  ([actions run](https://github.com/KryomLabs/kryomcode/actions/runs/41603353352)):
+  all six jobs passed — Test and build plus Pack and verify on
+  macOS, Ubuntu, and Windows. The pack jobs prove packaging;
+  macOS/Linux desktop runtime remains unvalidated.
 - Owner manual GUI smoke on the installed Windows app,
   2026-11-03: T1–T7 all PASS (launch/quit, Explorer, chat +
   model picker + Stop, agent plan/approve/apply/undo, terminal,
   Git, research-to-agent) — owner-reported, see
   [docs/SMOKE_TEST.md](docs/SMOKE_TEST.md).
 - Honest qualifications: Windows validated; macOS/Linux
-  configured-but-untested; CI matrix runs unrecorded. Full list:
+  configured-but-untested. Full list:
   [docs/backend-limitations.md](docs/backend-limitations.md).
 
 Development commands:
@@ -447,7 +463,9 @@ Development commands:
 Genuine future work, in release-unblocking order (none scheduled or
 promised; blocked items need hardware, money, or credentials):
 
-1. First 3-OS CI matrix runs, recorded.
+1. ~~First 3-OS CI matrix runs, recorded.~~ Done 2026-11-03 —
+   [CI run 35](https://github.com/KryomLabs/kryomcode/actions/runs/41603353352)
+   passed all six jobs.
 2. macOS dmg + Linux AppImage/deb built, launched, and
    smoke-tested on real hardware (blocked: test machines).
 3. Signed installers via Windows cert + Apple notarization
@@ -473,7 +491,8 @@ scientific research into one evidence-driven workspace.
 - Repository: [github.com/KryomLabs/kryomcode](https://github.com/KryomLabs/kryomcode)
 - Issues: [github.com/KryomLabs/kryomcode/issues](https://github.com/KryomLabs/kryomcode/issues)
 - Releases: [github.com/KryomLabs/kryomcode/releases](https://github.com/KryomLabs/kryomcode/releases)
-  (no installers published yet — check here after the first release)
+  ([v0.1.0](https://github.com/KryomLabs/kryomcode/releases/tag/v0.1.0)
+  is the latest public release)
 
 Backend in CommonJS (`.cjs`), renderer in TypeScript; new IPC
 channels validate via `isTrustedSender(event)` first; colocated
