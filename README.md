@@ -482,7 +482,7 @@ scientific research into one evidence-driven workspace.
 
 - LinkedIn: [linkedin.com/in/igovindkadam](https://www.linkedin.com/in/igovindkadam)
 - X: [x.com/iGovindKadam](https://www.x.com/iGovindKadam)
-- Personal GitHub: [github.com/kadamgovind](https://www.github.com/kadamgovind)
+- Personal GitHub: [github.com/igovindkadam](https://www.github.com/igovindkadam)
 - KryomCode project repository (KryomLabs org — not the personal
   account): [github.com/KryomLabs/kryomcode](https://www.github.com/KryomLabs/kryomcode)
 
